@@ -9,7 +9,8 @@
       "mcp__plugin_playwright_playwright__browser_click",
       "Bash(node -e:*)",
       "Bash(test:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -189,12 +189,12 @@ Optional (enable as features are built):
 ### Phase 1 — MVP (15 steps, usable after step 12)
 1. ~~Project scaffolding + Docker Compose~~ (done)
 2. ~~Database schema + Drizzle migrations~~ (done)
-3. Auth flow (Supabase Auth, magic link login)
-4. Booking types CRUD + custom form builder
-5. Working hours + availability overrides
-6. Google Calendar OAuth + sync
+3. ~~Auth flow (Supabase Auth, magic link login)~~ (done)
+4. ~~Booking types CRUD + custom form builder~~ (done)
+5. ~~Working hours + availability overrides~~ (done)
+6. ~~Google Calendar OAuth + sync~~ (done)
 7. Microsoft Outlook OAuth + sync
-8. Availability calculation engine
+8. ~~Availability calculation engine~~ (done — pure function with 23 tests)
 9. Public booking page (with dynamic custom forms)
 10. Email confirmations + reminders (Resend + BullMQ)
 11. Calendar file (.ics) generation + "Add to Calendar" links
