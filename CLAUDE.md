@@ -162,6 +162,13 @@ wordpress-plugin/     # WP plugin for [booking] shortcode (Phase 3)
 - Estimated ~2.5GB RAM usage, leaves ~5.5GB free on 8GB VPS
 - Production env: `.env.production` (not committed)
 
+## Service Dashboards
+
+- **Supabase:** https://supabase.com/dashboard/project/wimrjgrujprvwbsewqrq (eu-west-2 London, Free tier)
+- **Sentry:** https://small-giants-studio.sentry.io (EU region, org: `small-giants-studio`, project: `javascript-nextjs`)
+- **UptimeRobot:** https://dashboard.uptimerobot.com (no monitors yet — add at deploy)
+- **All credentials** are in `.env.local` (gitignored). See `.env.example` for the template.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env.local`. Required for dev:
