@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$PROJECT_DIR\" && npx eslint --fix \"$FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$FILE_PATH\" | grep -qE '\\.(env|env\\.local|env\\.production)$' && echo 'BLOCKED: Cannot edit .env files directly. Use .env.example as the template.' && exit 1 || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

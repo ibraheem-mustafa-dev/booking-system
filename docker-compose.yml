@@ -1,0 +1,87 @@
+# =============================================================================
+# Docker Compose — Booking System (Production VPS Deployment)
+# =============================================================================
+# Run: docker compose up -d
+# Sits alongside existing N8N stack on the same VPS (8GB RAM).
+#
+# Architecture:
+#   - PostgreSQL + Redis: self-hosted on VPS (data stays on your server)
+#   - Supabase Auth + Storage: Supabase Cloud (handles JWT, magic links, file uploads)
+#   - Next.js app: self-hosted, connects to both
+#
+# This hybrid approach keeps VPS RAM usage under 2.5GB whilst getting
+# Supabase's managed auth without running the full Supabase Docker stack
+# (which alone needs 4-6GB RAM).
+#
+# Required: .env.production with all variables from .env.example
+# =============================================================================
+
+services:
+  # --- PostgreSQL 16 (data storage) ---
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: booking_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432" # localhost only — not exposed to internet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1536M # Cap at 1.5GB to prevent OOM on shared VPS
+
+  # --- Redis 7 (BullMQ job queue for reminders, email scheduling) ---
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379" # localhost only
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # --- Next.js Application ---
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/booking_system
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  postgres_data:
+  redis_data:
