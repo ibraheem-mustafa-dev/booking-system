@@ -2,65 +2,64 @@
 
 ## Completed This Session
 
-1. **Step 5: Working hours + availability overrides** — full tRPC router + dashboard UI:
-   - tRPC router with 5 procedures: getWorkingHours, saveWorkingHours (bulk), listOverrides, createOverride, updateOverride, deleteOverride
-   - Working hours editor: Mon-Sun toggles, multiple time slots per day, timezone selector, bulk save via DB transaction
-   - Overrides editor: list with type badges, create/edit dialogue, recurring toggle with 11 RRULE presets, delete confirmation
-
-2. **Step 6: Google Calendar OAuth + sync** — full OAuth2 flow:
-   - `googleapis` package installed, OAuth helper module with token refresh, calendar list sync, freebusy query
-   - Connect route (`/api/auth/google/connect`) redirects to Google consent screen with CSRF state
-   - Callback route (`/api/auth/google/callback`) exchanges code, encrypts tokens (AES-256-GCM), stores account, syncs calendar list
-   - tRPC calendar router: listAccounts, listConnections, listAllConnections, toggleSelected, syncCalendars, disconnect
-   - Dashboard UI: "Calendars" tab with connect button (Google logo), per-calendar toggle switches, sync/disconnect
-
-3. **Step 7 (was step 8 in plan): Availability calculation engine** — pure function, fully testable:
-   - Formula: Working Hours + Available Overrides - Blocked Overrides - Busy Events - Bookings (with buffer) - Notice Period
-   - 23 tests covering all scenarios: basic slots, split schedules, overrides (available/blocked/combined), busy events, bookings with buffer, notice period, edge cases (zero-length, oversized duration, full-day busy)
-   - Vitest set up with path aliases, all tests pass
+1. **Step 5: Working hours + availability overrides** — tRPC router + dashboard UI with Mon-Sun toggles, split schedules, RRULE recurrence presets
+2. **Step 6: Google Calendar OAuth + sync** — full OAuth2 flow with encrypted tokens, calendar list sync, per-calendar busy time toggling
+3. **Step 7 (was 8): Availability engine** — pure calculation function with 23 vitest tests
+4. **Step 8 (was 9): Public booking page** — wired REST APIs to real engine, built multi-step booking flow:
+   - Availability API returns real calculated slots from engine
+   - Create endpoint validates slot is still available before inserting (prevents double-bookings)
+   - Zod validation on all inputs
+   - Public page at `/book/[orgSlug]/[typeSlug]` with org branding (CSS custom properties)
+   - 4-step flow: date picker → time slot grid → booking form (name, email, phone, custom fields) → confirmation
+   - Custom field renderer handles all 9 field types (text, textarea, select, checkbox, radio, file, email, phone, number)
+   - Mobile-first responsive, 44px touch targets, auto-detected timezone
 
 ## Current State
 
-- **Working:** Auth + Booking types CRUD + Working hours + Overrides + Google Calendar OAuth + Availability engine
-- **Git:** `master` branch. Steps 5-7 uncommitted — ready to commit.
-- **DB:** All 12 tables exist in Supabase Cloud.
-- **Tests:** 23 availability engine tests pass (vitest).
-- **Dev server:** Runs on localhost:3000. TypeScript compiles with zero errors.
+- **Working:** Auth + Booking types CRUD + Working hours + Overrides + Google Calendar OAuth + Availability engine + Public booking page
+- **Git:** `master` branch. Public booking page uncommitted — ready to commit.
+- **Tests:** 23 availability engine tests pass.
+- **TypeScript:** Zero errors.
 
 ## Known Issues / Blockers
 
-- **`npm run build` untested** — should test before deploy
+- **`npm run build` untested** — test before deploy
 - **Raw Drizzle errors leak to client** — wrap in user-friendly messages before production
-- **REST API routes still stubs** — will be wired up when public booking page is built
 - **No rate limiting** on public REST endpoints
-- **Google OAuth untested end-to-end** — needs GOOGLE_CLIENT_ID/SECRET + TOKEN_ENCRYPTION_KEY in .env.local
+- **Google OAuth untested end-to-end** — needs credentials in .env.local
+- **Outlook OAuth not built yet** — deferred in favour of public booking page (same pattern as Google, low risk)
 
 ## Next Priorities (in order)
 
-1. **Step 8: Microsoft Outlook OAuth + sync** — same pattern as Google, different provider
-2. **Step 9: Public booking page** — wire REST API to availability engine, build `/book/[slug]/[typeSlug]`
-3. **Step 10: Email confirmations + reminders** — Resend + BullMQ, 7 template types
-4. **Step 11: Calendar file (.ics) generation** + "Add to Calendar" links
-5. **Step 12: Invoices & receipts** — branded PDF generation + email delivery
+1. **Step 9 (was 7): Microsoft Outlook OAuth** — same pattern as Google, can be deferred further
+2. **Step 10: Email confirmations + reminders** — Resend + BullMQ, 7 template types
+3. **Step 11: Calendar file (.ics) generation** + "Add to Calendar" links
+4. **Step 12: Invoices & receipts** — branded PDF generation + email delivery
+5. **Step 13: AI transcription + summary**
 
 ## Files Created This Session
 
 - `src/server/routers/availability.ts` — working hours + overrides CRUD
 - `src/server/routers/calendar.ts` — calendar accounts + connections management
-- `src/lib/calendar/google.ts` — Google OAuth helper (auth, tokens, calendar list, freebusy)
+- `src/lib/calendar/google.ts` — Google OAuth helper
 - `src/lib/availability/engine.ts` — pure availability calculation function
 - `src/lib/availability/engine.test.ts` — 23 tests
 - `src/lib/availability/index.ts` — barrel export
+- `src/lib/availability/loader.ts` — DB data loader for the engine (bridges DB → pure function)
 - `src/app/api/auth/google/connect/route.ts` — OAuth initiation
 - `src/app/api/auth/google/callback/route.ts` — OAuth callback handler
 - `src/app/(dashboard)/dashboard/availability/page.tsx` — 3-tab page
 - `src/app/(dashboard)/dashboard/availability/_components/working-hours-editor.tsx`
 - `src/app/(dashboard)/dashboard/availability/_components/overrides-editor.tsx`
 - `src/app/(dashboard)/dashboard/availability/_components/calendar-connections.tsx`
+- `src/app/book/[slug]/[typeSlug]/page.tsx` — public booking page (server component)
+- `src/app/book/[slug]/[typeSlug]/booking-flow.tsx` — multi-step booking flow (client component)
 - `vitest.config.ts` — test configuration
 
 ## Files Modified This Session
 
 - `src/server/routers/_app.ts` — registered availability + calendar routers
-- `CLAUDE.md` — marked steps 3-8 as done
+- `src/app/api/v1/book/[orgSlug]/[typeSlug]/availability/route.ts` — wired to real engine via loader
+- `src/app/api/v1/book/[orgSlug]/[typeSlug]/create/route.ts` — added Zod validation + slot availability check
+- `CLAUDE.md` — marked steps 3-9 as done
 - `package.json` — added googleapis, vitest, @rollup/rollup-win32-x64-msvc

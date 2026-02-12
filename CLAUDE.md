@@ -195,7 +195,7 @@ Optional (enable as features are built):
 6. ~~Google Calendar OAuth + sync~~ (done)
 7. Microsoft Outlook OAuth + sync
 8. ~~Availability calculation engine~~ (done — pure function with 23 tests)
-9. Public booking page (with dynamic custom forms)
+9. ~~Public booking page (with dynamic custom forms)~~ (done)
 10. Email confirmations + reminders (Resend + BullMQ)
 11. Calendar file (.ics) generation + "Add to Calendar" links
 12. Invoices & receipts (branded PDF generation + email delivery)

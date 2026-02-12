@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { organisations, bookingTypes, bookings } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+import { z } from 'zod';
+import { loadAvailability } from '@/lib/availability/loader';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,22 +17,25 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
+// ---------------------------------------------------------------------------
+// Input validation
+// ---------------------------------------------------------------------------
+
+const createBookingSchema = z.object({
+  clientName: z.string().min(1, 'Name is required').max(256),
+  clientEmail: z.string().email('Valid email is required').max(320),
+  clientPhone: z.string().max(32).optional(),
+  clientTimezone: z.string().min(1, 'Timezone is required').max(64),
+  startAt: z.string().datetime({ message: 'startAt must be an ISO 8601 date' }),
+  notes: z.string().max(2000).optional(),
+  customFieldResponses: z.record(z.string(), z.union([z.string(), z.boolean(), z.array(z.string())])).optional(),
+});
+
 /**
  * POST /api/v1/book/:orgSlug/:typeSlug/create
  *
- * Creates a new booking. Called by the public booking page and embed widget.
+ * Creates a new booking. Validates the chosen slot is still available.
  * No authentication required — this is the public booking endpoint.
- *
- * Request body:
- * {
- *   "clientName": "Jane Smith",
- *   "clientEmail": "jane@example.com",
- *   "clientPhone": "+447700900000",
- *   "clientTimezone": "Europe/London",
- *   "startAt": "2026-02-15T14:00:00Z",
- *   "notes": "Looking forward to it",
- *   "customFieldResponses": { "fieldId1": "value1" }
- * }
  */
 export async function POST(
   request: NextRequest,
@@ -38,8 +43,8 @@ export async function POST(
 ) {
   const { orgSlug, typeSlug } = await params;
 
-  // Parse request body
-  let body: Record<string, unknown>;
+  // Parse and validate request body
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -49,105 +54,117 @@ export async function POST(
     );
   }
 
-  const { clientName, clientEmail, clientPhone, clientTimezone, startAt, notes, customFieldResponses } = body as {
-    clientName?: string;
-    clientEmail?: string;
-    clientPhone?: string;
-    clientTimezone?: string;
-    startAt?: string;
-    notes?: string;
-    customFieldResponses?: Record<string, string | boolean | string[]>;
-  };
-
-  // Basic validation — Zod schemas will replace this when building the form
-  if (!clientName || !clientEmail || !clientTimezone || !startAt) {
+  const parsed = createBookingSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Missing required fields: clientName, clientEmail, clientTimezone, startAt' },
+      { error: parsed.error.issues[0].message },
       { status: 400, headers: corsHeaders },
     );
   }
 
+  const input = parsed.data;
+  const startDate = new Date(input.startAt);
+
   // Look up org + booking type
-  const org = await db
-    .select({ id: organisations.id })
+  const [org] = await db
+    .select({ id: organisations.id, ownerId: organisations.ownerId })
     .from(organisations)
     .where(eq(organisations.slug, orgSlug))
     .limit(1);
 
-  if (org.length === 0) {
+  if (!org) {
     return NextResponse.json(
       { error: 'Organisation not found.' },
       { status: 404, headers: corsHeaders },
     );
   }
 
-  const type = await db
+  const [type] = await db
     .select()
     .from(bookingTypes)
-    .where(and(eq(bookingTypes.orgId, org[0].id), eq(bookingTypes.slug, typeSlug), eq(bookingTypes.isActive, true)))
+    .where(
+      and(
+        eq(bookingTypes.orgId, org.id),
+        eq(bookingTypes.slug, typeSlug),
+        eq(bookingTypes.isActive, true),
+      ),
+    )
     .limit(1);
 
-  if (type.length === 0) {
+  if (!type) {
     return NextResponse.json(
       { error: 'Booking type not found or inactive.' },
       { status: 404, headers: corsHeaders },
     );
   }
 
-  const bookingType = type[0];
+  // Verify the chosen slot is still available
+  const dateStr = startDate.toISOString().split('T')[0];
+  const availability = await loadAvailability({
+    orgSlug,
+    typeSlug,
+    date: dateStr,
+    timezone: input.clientTimezone,
+  });
 
-  // Calculate end time from duration
-  const startDate = new Date(startAt);
-  if (isNaN(startDate.getTime())) {
+  if ('error' in availability) {
     return NextResponse.json(
-      { error: 'Invalid startAt date format. Use ISO 8601.' },
-      { status: 400, headers: corsHeaders },
+      { error: availability.error },
+      { status: availability.status, headers: corsHeaders },
     );
   }
-  const endDate = new Date(startDate.getTime() + bookingType.durationMins * 60 * 1000);
+
+  const slotIsAvailable = availability.slots.some(
+    (slot) => slot.start.getTime() === startDate.getTime(),
+  );
+
+  if (!slotIsAvailable) {
+    return NextResponse.json(
+      { error: 'This time slot is no longer available. Please choose another.' },
+      { status: 409, headers: corsHeaders },
+    );
+  }
+
+  // Calculate end time
+  const endDate = new Date(startDate.getTime() + type.durationMins * 60 * 1000);
 
   // Generate unique tokens for cancel/reschedule links
   const cancellationToken = randomBytes(32).toString('hex');
   const rescheduleToken = randomBytes(32).toString('hex');
 
-  // TODO: Before inserting, the availability engine must verify the slot is still open.
-  // This requires a SELECT ... FOR UPDATE within a transaction to prevent race conditions.
-  // Implementing in Phase 1B (step 7) alongside the availability engine.
-
-  // Find the organiser (org owner for now — team routing comes in Phase 2)
-  const orgOwner = await db
-    .select({ ownerId: organisations.ownerId })
-    .from(organisations)
-    .where(eq(organisations.id, org[0].id))
-    .limit(1);
-
+  // Insert the booking
   const [booking] = await db
     .insert(bookings)
     .values({
-      orgId: org[0].id,
-      bookingTypeId: bookingType.id,
-      organiserId: orgOwner[0].ownerId,
-      clientName,
-      clientEmail,
-      clientPhone: clientPhone ?? null,
-      clientTimezone,
+      orgId: org.id,
+      bookingTypeId: type.id,
+      organiserId: org.ownerId,
+      clientName: input.clientName,
+      clientEmail: input.clientEmail,
+      clientPhone: input.clientPhone || null,
+      clientTimezone: input.clientTimezone,
       startAt: startDate,
       endAt: endDate,
-      notes: notes ?? null,
-      customFieldResponses: customFieldResponses ?? {},
+      notes: input.notes || null,
+      customFieldResponses: (input.customFieldResponses || {}) as Record<string, string | boolean | string[]>,
       cancellationToken,
       rescheduleToken,
     })
-    .returning({ id: bookings.id, startAt: bookings.startAt, endAt: bookings.endAt });
+    .returning({
+      id: bookings.id,
+      startAt: bookings.startAt,
+      endAt: bookings.endAt,
+    });
 
-  // TODO: Trigger confirmation email + schedule reminders via BullMQ (Phase 1B, step 9)
-
-  return NextResponse.json({
-    id: booking.id,
-    startAt: booking.startAt,
-    endAt: booking.endAt,
-    cancellationToken,
-    rescheduleToken,
-    message: 'Booking confirmed.',
-  }, { status: 201, headers: corsHeaders });
+  return NextResponse.json(
+    {
+      id: booking.id,
+      startAt: booking.startAt.toISOString(),
+      endAt: booking.endAt.toISOString(),
+      cancellationToken,
+      rescheduleToken,
+      message: 'Booking confirmed.',
+    },
+    { status: 201, headers: corsHeaders },
+  );
 }
