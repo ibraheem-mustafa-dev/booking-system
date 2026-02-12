@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(claude mcp:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "mcp__plugin_playwright_playwright__browser_click"
     ]
   }
 }
