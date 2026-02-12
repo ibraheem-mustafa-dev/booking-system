@@ -1,98 +1,98 @@
-# Session Handoff — 12 February 2026
+# Session Handoff — 12 February 2026 (Session 4)
 
 ## Completed This Session
 
-1. **Critical plan review** — ran 4 parallel subagents (architecture, UI/UX, competitor analysis, risk assessment). Produced consolidated report grading plan 6/10 overall. Key findings: MVP scope is 3x too big, tRPC breaks for cross-origin embed widget, bookings table was missing org_id, OAuth tokens stored in plaintext, Docker Compose didn't include Supabase Auth, no monitoring/error tracking
-2. **Agreed on reduced MVP scope** — user agreed to "start small". Revised MVP from 15 steps to phased approach: Phase 1A (6 steps: auth → booking types → working hours → Google Calendar → availability engine → public page), Phase 1B (email + deploy), Phase 1C (polish). AI transcription, invoicing, Outlook, Zoom all deferred
-3. **Fixed 6 database schema issues:**
-   - Added `orgId` to bookings table (denormalised from bookingType for RLS)
-   - Split `calendarAccounts.calendars` JSONB into new `calendarConnections` table (indexable)
-   - Added `timezone` column to `availabilityOverrides`
-   - Changed bookings FKs to `ON DELETE RESTRICT` (not CASCADE)
-   - Added `cancellationToken` + `rescheduleToken` to bookings for email action links
-   - Renamed token columns to `accessTokenEncrypted`/`refreshTokenEncrypted`
-   - Added composite index `bookings_organiser_time_idx` for availability engine
-4. **Created encryption utility** — `src/lib/crypto.ts` with AES-256-GCM encrypt/decrypt for OAuth tokens
-5. **Created public REST API** alongside tRPC — versioned `/api/v1/` routes for cross-origin embed widget:
-   - `/api/v1/health` — UptimeRobot health check
-   - `/api/v1/book/[orgSlug]/[typeSlug]/availability` — public slot availability (stub, awaits engine)
-   - `/api/v1/book/[orgSlug]/[typeSlug]/create` — public booking creation with CORS
-6. **Updated Docker Compose** — hybrid deployment: self-hosted Postgres + Redis on VPS, Supabase Cloud for auth/storage. Locked ports to localhost-only, added memory limits (1.5GB Postgres, 192MB Redis, 512MB app), Redis AOF persistence
-7. **Added Sentry error tracking** — installed `@sentry/nextjs`, created client/server/edge configs, global error boundary, wrapped next.config.ts
-8. **Updated CLAUDE.md** — documented dual API architecture (tRPC for dashboard, REST v1 for public), new table, encryption, Sentry
+1. **Created all 3 service accounts via Playwright browser automation:**
+   - **Supabase** — org "Small Giants Studio", project "booking-system", region eu-west-2 (London), Free tier. Auto-generated DB password.
+   - **Sentry** — org "small-giants-studio", project "javascript-nextjs", EU data region, 14-day Business trial active.
+   - **UptimeRobot** — account created, onboarding skipped (no monitors until deploy).
+2. **Created `.env.local`** with all live credentials: Supabase URL + anon key + service role key, direct DB connection string, Sentry DSN (both server and client), auto-generated TOKEN_ENCRYPTION_KEY.
+3. **Updated CLAUDE.md** — replaced inline credentials with safe dashboard URLs only. Credentials now live exclusively in `.env.local` (gitignored).
+4. **Committed previous sessions' work** — two commits: Playwright permissions + CLAUDE.md with service dashboard links. Deleted stray `nul` file, added `.playwright-mcp/` to `.gitignore`.
+5. **Fixed dependency issue** — `@tailwindcss/oxide-win32-x64-msvc` and `lightningcss-win32-x64-msvc` native binaries were missing. Explicitly installed both.
+6. **Built complete auth flow (Step 3):**
+   - `src/lib/auth/utils.ts` — `slugify()` + `generateUniqueSlug()` for org URL slugs
+   - `src/app/(auth)/layout.tsx` — centred card layout for auth pages
+   - `src/app/(auth)/login/page.tsx` — magic link login (email input → Supabase OTP → "check your email" confirmation)
+   - `src/app/(auth)/callback/route.ts` — exchanges auth code for session, syncs user to `users` table, auto-creates organisation + membership on first login
+   - `src/app/(dashboard)/layout.tsx` — server component fetching user + org, wraps children in shadcn sidebar
+   - `src/app/(dashboard)/sidebar.tsx` — client sidebar with nav links (Dashboard, Bookings, Booking Types, Availability, Settings) + user dropdown with logout
+   - `src/app/(dashboard)/actions.ts` — server action for logout (signOut + redirect)
+   - `src/app/(dashboard)/dashboard/page.tsx` — welcome page with onboarding prompt ("Create your first booking type") if no booking types exist
+   - `src/app/page.tsx` — replaced Next.js template with auth-aware landing page (redirects to `/dashboard` if logged in, shows sign-in link if not)
 
 ## Current State
 
-- **Working:** Next.js 16 scaffolded with TypeScript, Tailwind CSS v4, shadcn/ui (27 components), Drizzle ORM schema (12 tables with relations), tRPC v11 + REST API v1, Supabase SSR auth clients, middleware, theming (6 presets), Docker Compose, Dockerfile, Sentry wiring, crypto utility
-- **TypeScript:** Compiles cleanly, zero errors
-- **Git:** Single initial commit from `create-next-app`. ALL work from 3 sessions is uncommitted — should be committed before continuing
-- **Not deployed:** Local development only. No Supabase project connected yet (needs `.env.local`)
-- **No migrations run:** Schema defined in Drizzle but no database exists yet
+- **Working:** Full scaffolding + auth flow code written. TypeScript compiles cleanly (`tsc --noEmit` passes). Dev server starts on localhost.
+- **Git:** 3 commits on `master` branch. Auth flow files are **uncommitted** — commit before continuing.
+- **Not yet tested end-to-end:** Schema hasn't been pushed to Supabase yet (`npx drizzle-kit push` needed). Auth flow can't be tested until schema exists in the database.
+- **`.env.local`** has all required credentials for Supabase, Sentry, and token encryption.
+- **Supabase dashboard:** https://supabase.com/dashboard/project/wimrjgrujprvwbsewqrq
+- **Sentry dashboard:** https://small-giants-studio.sentry.io
 
 ## Known Issues / Blockers
 
-- **No Supabase project** — user must create one at supabase.com and add URL + keys to `.env.local`. This blocks Step 3 (auth flow)
-- **No Sentry project** — user must sign up at sentry.io and add DSN to `.env.local`. Not blocking but should be done before deploy
-- **Uncommitted work** — 3 sessions of changes unstaged. Risk of losing work. Commit immediately
-- **`nul` file** — stray Windows artifact in project root. Delete and gitignore
-- **REST API routes are stubs** — availability endpoint returns empty slots array; booking creation doesn't verify slot availability. Both will be completed when the availability engine is built (Phase 1B)
-- **No rate limiting** on public REST endpoints yet — add before deploy
-- **TOKEN_ENCRYPTION_KEY not generated** — user needs to run `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and add to `.env.local`
+- **Schema not pushed** — must run `npx drizzle-kit push` before auth flow can be tested. This is the immediate next step.
+- **`npm run build` fails** — Tailwind CSS v4 + Turbopack has a `RangeError: Invalid code point 10520366` bug in `markUsedVariable`. This is a pre-existing issue with `@tailwindcss/oxide` native bindings on Windows, not caused by auth code. `npm run dev` works fine. Needs investigation before deploy.
+- **Parent `package-lock.json`** — stray lockfile at `C:\Users\Bean\package-lock.json` causes Next.js workspace root inference warning. Should be deleted.
+- **REST API routes are still stubs** — availability and booking creation endpoints return placeholder data. Will be completed when availability engine is built (Step 7).
+- **No rate limiting** on public REST endpoints — add before deploy.
+- **Middleware deprecation warning** — Next.js 16 warns "middleware file convention is deprecated, use proxy instead". Not breaking, but should be migrated eventually.
+- **Sentry trial** — 14-day Business plan trial is active. Will drop to free tier after that.
 
 ## Next Priorities (in order)
 
-1. **Commit all work** — 3 sessions of changes need to be committed before anything else
-2. **Supabase project setup** (user browser task) — create project, copy credentials to `.env.local`
-3. **Generate encryption key** — add TOKEN_ENCRYPTION_KEY to `.env.local`
-4. **Step 3: Auth flow** — Supabase Auth with magic link login, login/register pages, OAuth callback, protected dashboard layout, onboarding wizard (connect calendar → create type → copy link)
-5. **Step 4: Booking types CRUD** — simple form (NOT drag-and-drop builder), add/edit/delete booking types
-6. **Step 5: Working hours setup** — per-day configuration UI
-7. **Step 6: Google Calendar OAuth + sync** — single provider for MVP, encrypt tokens
-8. **Step 7: Availability engine** — write tests FIRST (use `availability-engine-tester` agent), then implement. Handle timezones with care
-9. **Step 8: Public booking page** — wire up the REST API stubs to the real engine
-10. **Step 9: Email + cancel/reschedule links** — Resend + BullMQ reminders
+1. **Commit auth flow work** — all new files are uncommitted
+2. **Push schema to Supabase** — `npx drizzle-kit push` to create all 12 tables
+3. **Test auth flow end-to-end** — visit localhost, click sign in, receive magic link, complete login, verify dashboard loads with sidebar and onboarding prompt
+4. **Step 4: Booking types CRUD** — simple form (NOT drag-and-drop builder), add/edit/delete booking types. tRPC router + dashboard pages.
+5. **Step 5: Working hours setup** — per-day configuration UI with overrides
+6. **Step 6: Google Calendar OAuth + sync** — single provider for MVP, encrypt tokens
+7. **Step 7: Availability engine** — write tests FIRST (`availability-engine-tester` agent), then implement
+8. **Step 8: Public booking page** — wire up REST API stubs to real engine
+9. **Step 9: Email + cancel/reschedule links** — Resend + BullMQ reminders
 
 ## Files Modified
 
 **Created this session:**
-- `c:\Users\Bean\Projects\booking-system\src\lib\crypto.ts` — AES-256-GCM encrypt/decrypt
-- `c:\Users\Bean\Projects\booking-system\src\app\api\v1\health\route.ts` — health check endpoint
-- `c:\Users\Bean\Projects\booking-system\src\app\api\v1\book\[orgSlug]\[typeSlug]\availability\route.ts` — public availability API
-- `c:\Users\Bean\Projects\booking-system\src\app\api\v1\book\[orgSlug]\[typeSlug]\create\route.ts` — public booking creation API
-- `c:\Users\Bean\Projects\booking-system\sentry.client.config.ts` — Sentry browser config
-- `c:\Users\Bean\Projects\booking-system\sentry.server.config.ts` — Sentry server config
-- `c:\Users\Bean\Projects\booking-system\sentry.edge.config.ts` — Sentry edge config
-- `c:\Users\Bean\Projects\booking-system\src\app\global-error.tsx` — Sentry error boundary
+- `c:\Users\Bean\Projects\booking-system\.env.local` — all live credentials (gitignored)
+- `c:\Users\Bean\Projects\booking-system\src\lib\auth\utils.ts` — slugify + generateUniqueSlug
+- `c:\Users\Bean\Projects\booking-system\src\app\(auth)\layout.tsx` — auth pages layout
+- `c:\Users\Bean\Projects\booking-system\src\app\(auth)\login\page.tsx` — magic link login page
+- `c:\Users\Bean\Projects\booking-system\src\app\(auth)\callback\route.ts` — auth callback handler
+- `c:\Users\Bean\Projects\booking-system\src\app\(dashboard)\layout.tsx` — dashboard layout with sidebar
+- `c:\Users\Bean\Projects\booking-system\src\app\(dashboard)\sidebar.tsx` — sidebar navigation component
+- `c:\Users\Bean\Projects\booking-system\src\app\(dashboard)\actions.ts` — logout server action
+- `c:\Users\Bean\Projects\booking-system\src\app\(dashboard)\dashboard\page.tsx` — dashboard home page
 
 **Modified this session:**
-- `c:\Users\Bean\Projects\booking-system\src\lib\db\schema.ts` — 6 schema fixes (org_id, calendarConnections, timezone, RESTRICT, tokens, indexes)
-- `c:\Users\Bean\Projects\booking-system\src\middleware.ts` — exclude `/api/v1` from auth
-- `c:\Users\Bean\Projects\booking-system\docker-compose.yml` — hybrid deployment, memory limits, localhost ports
-- `c:\Users\Bean\Projects\booking-system\.env.example` — added TOKEN_ENCRYPTION_KEY + SENTRY_DSN
-- `c:\Users\Bean\Projects\booking-system\next.config.ts` — Sentry wrapper
-- `c:\Users\Bean\Projects\booking-system\CLAUDE.md` — updated architecture docs (dual API, 12 tables, encryption)
-- `c:\Users\Bean\Projects\booking-system\package.json` — added @sentry/nextjs
-- `c:\Users\Bean\Projects\booking-system\package-lock.json`
+- `c:\Users\Bean\Projects\booking-system\CLAUDE.md` — added service dashboard URLs, removed credentials
+- `c:\Users\Bean\Projects\booking-system\.gitignore` — added `.playwright-mcp/`
+- `c:\Users\Bean\Projects\booking-system\.claude\settings.local.json` — added Playwright permissions
+- `c:\Users\Bean\Projects\booking-system\src\app\page.tsx` — replaced Next.js template with auth-aware landing
+- `c:\Users\Bean\Projects\booking-system\package.json` — added lightningcss + oxide native binaries
+- `c:\Users\Bean\Projects\booking-system\package-lock.json` — regenerated after clean install
 
 ## Key Decisions Made This Session
 
-1. **MVP scope reduced** — original 15-step MVP cut to phased 1A/1B/1C. AI transcription, invoicing, Outlook, Zoom, drag-and-drop form builder, in-person bookings all deferred to Phase 2+
-2. **Dual API architecture** — tRPC for authenticated dashboard (same-origin), REST v1 for public booking/embed (cross-origin with CORS). Shared business logic underneath
-3. **Hybrid deployment** — Supabase Cloud for auth + file storage (handles JWT, magic links). Self-hosted Postgres + Redis on VPS. Avoids running full Supabase Docker stack (4-6GB RAM)
-4. **OAuth tokens encrypted** — AES-256-GCM with environment variable key. Never stored in plaintext
-5. **Bookings denormalised** — org_id added directly to bookings table for RLS and fast queries
-6. **Calendar data normalised** — JSONB calendars array split into calendarConnections table for indexing
-7. **No pivot needed** — all issues from the critical review have workarounds, no tech stack changes required
+1. **Magic link only for MVP** — no password auth. Reduces attack surface, simpler UX.
+2. **User sync via check-on-login** — callback route creates/updates `users` table record. Simpler than Supabase webhook, no external config needed.
+3. **Auto-create org on first login** — every user gets an organisation immediately (name from GitHub profile or email prefix, slug with random 4-char suffix). No separate onboarding wizard.
+4. **Onboarding is a banner on dashboard** — not a multi-step wizard. Simple "Create your first booking type" card with CTA button. Keeps MVP simple.
+5. **shadcn sidebar component** — already installed, handles mobile sheet + keyboard shortcut (Cmd+B) automatically.
+6. **Tailwind v4 variable syntax** — use `bg-(--brand-primary)` not `bg-[var(--brand-primary)]`. The square bracket + var() syntax crashes Tailwind v4's `markUsedVariable`.
+7. **Browser automation for signups** — Playwright MCP worked well for filling forms and navigating. Stopped at CAPTCHAs, passwords, and email verification as instructed.
 
 ## Notes for Next Session
 
 - **User is a non-coder with ADHD** — clear numbered lists, one recommendation with reasoning, no praise/encouragement, UK English always
-- **Commit first** — 3 sessions of uncommitted work. Do this immediately
-- **Supabase signup is the blocker** — user needs to do this in browser before auth can be built. Offer to guide with browser automation skill
-- **Test continuously** — don't batch testing at the end. Use `availability-engine-tester` agent after building the engine. Use `test-and-explain` agent after each feature
-- **Form builder is simple CRUD for MVP** — add fields via dropdown + up/down reorder. Drag-and-drop is Phase 2 polish
-- **Add onboarding wizard** to auth flow — 3 steps: connect calendar → create booking type → copy link
-- **Cancel/reschedule links are in MVP** — tokens already in schema, build the routes when doing email step
+- **Commit the auth code first** — then push schema, then test
+- **The build failure is NOT caused by auth code** — it's a Tailwind v4 + Turbopack native binary issue on Windows. Dev server works fine. Investigate separately.
+- **Delete `C:\Users\Bean\package-lock.json`** — stray file causing Next.js workspace root confusion
+- **Test continuously** — don't batch testing at the end. Use `test-and-explain` agent after each feature.
+- **Form builder is simple CRUD for MVP** — add fields via dropdown + up/down reorder. Drag-and-drop is Phase 2.
+- **Cancel/reschedule links are in MVP** — tokens already in schema, build routes in email step.
 - **Brand:** Small Giants Studio, #1B6B6B primary (teal), #E8B931 accent (gold), Inter font, Europe/London, GBP
-- **The `reference/` folder** contains full planning context. The txt file is 266KB — use offset/limit or grep
-- **Critical review report** was delivered in conversation (not saved to file). Key grade: 6/10 overall. Top weaknesses: bloated MVP scope, missing org_id, plaintext tokens, no monitoring — all now fixed
+- **The `reference/` folder** contains full planning context. The txt file is 266KB — use offset/limit or grep.
+- **Plan file** at `C:\Users\Bean\.claude\plans\twinkling-watching-treehouse.md` has the detailed auth implementation plan.
+- **Supabase project ref:** `wimrjgrujprvwbsewqrq` — all credentials in `.env.local`
