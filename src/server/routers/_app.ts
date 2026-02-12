@@ -1,14 +1,8 @@
 import { router } from '../trpc';
+import { bookingTypesRouter } from './bookingTypes';
 
 export const appRouter = router({
-  // Routers will be added as we build each feature:
-  // bookingTypes: bookingTypesRouter,
-  // availability: availabilityRouter,
-  // bookings: bookingsRouter,
-  // calendar: calendarRouter,
-  // invoices: invoicesRouter,
-  // recordings: recordingsRouter,
-  // settings: settingsRouter,
+  bookingTypes: bookingTypesRouter,
 });
 
 export type AppRouter = typeof appRouter;
