@@ -218,7 +218,7 @@ export async function sendBookingEmails(
     // -----------------------------------------------------------------------
     // 5. Build URLs
     // -----------------------------------------------------------------------
-    const icsDownloadUrl = `${APP_URL}/api/v1/book/${ctx.orgSlug}/${ctx.typeSlug}/ics/${booking.id}`;
+    const icsDownloadUrl = `${APP_URL}/api/v1/book/${ctx.orgSlug}/${ctx.typeSlug}/ics/${booking.id}?token=${booking.cancellationToken}`;
 
     const addToCalendarUrl = buildGoogleCalendarUrl({
       title: bookingType.name,

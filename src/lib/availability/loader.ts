@@ -40,7 +40,6 @@ export interface LoadAvailabilityParams {
 export interface LoadedAvailability {
   slots: AvailableSlot[];
   organisation: {
-    id: string;
     name: string;
     branding: Record<string, unknown>;
   };
@@ -244,12 +243,15 @@ export async function loadAvailability(
 
   const slots = calculateAvailableSlots(input);
 
+  // Strip customCss from branding before returning to public consumers (XSS vector)
+  const publicBranding = { ...(org.branding as Record<string, unknown>) };
+  delete publicBranding.customCss;
+
   return {
     slots,
     organisation: {
-      id: org.id,
       name: org.name,
-      branding: org.branding as Record<string, unknown>,
+      branding: publicBranding,
     },
     bookingType: {
       id: type.id,

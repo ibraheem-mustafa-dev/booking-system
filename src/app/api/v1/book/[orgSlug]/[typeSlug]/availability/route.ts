@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadAvailability } from '@/lib/availability/loader';
 
+// IANA timezone validation — cached set for performance
+const VALID_TIMEZONES = new Set(Intl.supportedValuesOf('timeZone'));
+
 // CORS headers for cross-origin embed widget requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +41,13 @@ export async function GET(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
     return NextResponse.json(
       { error: 'Invalid date format. Use YYYY-MM-DD.' },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (!VALID_TIMEZONES.has(timezone)) {
+    return NextResponse.json(
+      { error: 'Invalid timezone. Use an IANA timezone such as Europe/London.' },
       { status: 400, headers: corsHeaders },
     );
   }

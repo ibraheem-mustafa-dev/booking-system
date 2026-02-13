@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { bookings, bookingTypes, organisations, users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { generateIcsFile } from '@/lib/calendar/ics';
 
 const corsHeaders = {
@@ -16,22 +16,35 @@ export async function OPTIONS() {
 }
 
 /**
- * GET /api/v1/book/:orgSlug/:typeSlug/ics/:bookingId
+ * GET /api/v1/book/:orgSlug/:typeSlug/ics/:bookingId?token=...
  *
  * Returns a downloadable .ics calendar file for the given booking.
- * No authentication required — the booking ID acts as an unguessable token.
+ * Requires a valid cancellation token to prevent PII leakage.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ orgSlug: string; typeSlug: string; bookingId: string }> },
 ) {
   const { bookingId } = await params;
+  const token = request.nextUrl.searchParams.get('token');
 
-  // Load booking
+  if (!token) {
+    return NextResponse.json(
+      { error: 'Missing required parameter: token' },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  // Load booking and verify token in a single query
   const [booking] = await db
     .select()
     .from(bookings)
-    .where(eq(bookings.id, bookingId))
+    .where(
+      and(
+        eq(bookings.id, bookingId),
+        eq(bookings.cancellationToken, token),
+      ),
+    )
     .limit(1);
 
   if (!booking) {

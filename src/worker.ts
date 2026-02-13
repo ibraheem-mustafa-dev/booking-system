@@ -170,7 +170,7 @@ async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
   const orgSlug = org.slug;
   const typeSlug = bookingType.slug;
 
-  const icsDownloadUrl = `${APP_URL}/api/v1/book/${orgSlug}/${typeSlug}/ics/${booking.id}`;
+  const icsDownloadUrl = `${APP_URL}/api/v1/book/${orgSlug}/${typeSlug}/ics/${booking.id}?token=${booking.cancellationToken}`;
 
   const addToCalendarUrl = buildGoogleCalendarUrl({
     title: bookingType.name,
