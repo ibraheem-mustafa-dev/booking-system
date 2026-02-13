@@ -55,6 +55,8 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 export const reminderTypeEnum = pgEnum('reminder_type', [
   '24h',
   '1h',
+  'review_request',
+  'follow_up',
   'custom',
 ]);
 
@@ -215,6 +217,33 @@ export const bookingTypes = pgTable('booking_types', {
   priceAmount: decimal('price_amount', { precision: 10, scale: 2 }),
   priceCurrency: varchar('price_currency', { length: 3 }).default('GBP'),
   requiresPayment: boolean('requires_payment').default(false).notNull(),
+  emailSettings: jsonb('email_settings').$type<{
+    reviewRequest: {
+      enabled: boolean;
+      delayMinutes: number;
+      subject: string;
+      body: string;
+    };
+    followUpReminder: {
+      enabled: boolean;
+      delayDays: number;
+      subject: string;
+      body: string;
+    };
+  }>().default({
+    reviewRequest: {
+      enabled: false,
+      delayMinutes: 120,
+      subject: 'How was your {{bookingType}}?',
+      body: 'Hi {{clientName}},\n\nWe hope you enjoyed your {{bookingType}} on {{bookingDate}}.\n\nWe would love to hear your feedback!',
+    },
+    followUpReminder: {
+      enabled: false,
+      delayDays: 30,
+      subject: 'Time to book your next {{bookingType}}',
+      body: 'Hi {{clientName}},\n\nIt has been a while since your last {{bookingType}}. Ready to book another session?',
+    },
+  }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
