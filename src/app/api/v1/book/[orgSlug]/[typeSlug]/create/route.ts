@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { organisations, bookingTypes, bookings } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { organisations, bookingTypes, bookings, invoices, users } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+import { createElement } from 'react';
 import { z } from 'zod';
+import { format } from 'date-fns';
 import { loadAvailability } from '@/lib/availability/loader';
 import { sendBookingEmails } from '@/lib/email/send-booking-emails';
+import { parseInvoiceNumber, formatInvoiceNumber } from '@/lib/invoice/number';
+import { generateInvoicePdf } from '@/lib/invoice/generate';
+import { sendEmail } from '@/lib/email/resend';
+import { InvoiceEmail } from '@/lib/email/templates/invoice-email';
+
+// IANA timezone validation — cached set for performance
+const VALID_TIMEZONES = new Set(Intl.supportedValuesOf('timeZone'));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +35,10 @@ const createBookingSchema = z.object({
   clientName: z.string().min(1, 'Name is required').max(256),
   clientEmail: z.string().email('Valid email is required').max(320),
   clientPhone: z.string().max(32).optional(),
-  clientTimezone: z.string().min(1, 'Timezone is required').max(64),
+  clientTimezone: z.string().min(1, 'Timezone is required').max(64).refine(
+    (tz) => VALID_TIMEZONES.has(tz),
+    { message: 'Invalid timezone. Use an IANA timezone such as Europe/London.' },
+  ),
   startAt: z.string().datetime({ message: 'startAt must be an ISO 8601 date' }),
   notes: z.string().max(2000).optional(),
   customFieldResponses: z.record(z.string(), z.union([z.string(), z.boolean(), z.array(z.string())])).optional(),
@@ -66,9 +78,9 @@ export async function POST(
   const input = parsed.data;
   const startDate = new Date(input.startAt);
 
-  // Look up org + booking type
+  // Look up org + booking type (select full row — branding needed for invoice)
   const [org] = await db
-    .select({ id: organisations.id, ownerId: organisations.ownerId })
+    .select()
     .from(organisations)
     .where(eq(organisations.slug, orgSlug))
     .limit(1);
@@ -156,6 +168,131 @@ export async function POST(
       startAt: bookings.startAt,
       endAt: bookings.endAt,
     });
+
+  // Auto-create invoice for paid booking types
+  if (type.requiresPayment && type.priceAmount) {
+    try {
+      const priceNum = parseFloat(type.priceAmount);
+      const lineItems = [
+        {
+          description: type.name,
+          quantity: 1,
+          unitPrice: priceNum,
+          total: priceNum,
+        },
+      ];
+
+      // Generate next invoice number for this org
+      const maxResult = await db
+        .select({ maxNum: sql<string | null>`max(${invoices.invoiceNumber})` })
+        .from(invoices)
+        .where(eq(invoices.orgId, org.id));
+
+      const currentMax = maxResult[0]?.maxNum ?? null;
+      const nextSeq = parseInvoiceNumber(currentMax) + 1;
+      const invoiceNumber = formatInvoiceNumber(nextSeq);
+
+      const downloadToken = randomBytes(32).toString('hex');
+      const dueDate = format(new Date(), 'yyyy-MM-dd');
+
+      const [newInvoice] = await db
+        .insert(invoices)
+        .values({
+          orgId: org.id,
+          bookingId: booking.id,
+          invoiceNumber,
+          clientName: input.clientName,
+          clientEmail: input.clientEmail,
+          lineItems,
+          subtotal: priceNum.toFixed(2),
+          vatRate: '0.00',
+          vatAmount: '0.00',
+          total: priceNum.toFixed(2),
+          dueDate,
+          downloadToken,
+        })
+        .returning();
+
+      // Send invoice email async (fire-and-forget)
+      (async () => {
+        try {
+          const branding = org.branding as {
+            logoUrl?: string;
+            primaryColour: string;
+            accentColour: string;
+            companyName?: string;
+            terms?: string;
+          };
+
+          // Get org owner email
+          const ownerResult = await db
+            .select({ email: users.email })
+            .from(users)
+            .where(eq(users.id, org.ownerId))
+            .limit(1);
+
+          const ownerEmail = ownerResult[0]?.email ?? '';
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+          const downloadUrl = `${appUrl}/api/v1/invoices/${newInvoice.id}/pdf?token=${downloadToken}`;
+
+          const currencySymbol = newInvoice.currency === 'GBP' ? '\u00a3' : newInvoice.currency === 'EUR' ? '\u20ac' : '$';
+          const totalFormatted = `${currencySymbol}${priceNum.toFixed(2)}`;
+
+          await sendEmail({
+            to: input.clientEmail,
+            subject: `Invoice ${invoiceNumber} from ${org.name}`,
+            react: createElement(InvoiceEmail, {
+              clientName: input.clientName,
+              invoiceNumber,
+              invoiceDate: format(new Date(), 'd MMMM yyyy'),
+              dueDate: format(new Date(), 'd MMMM yyyy'),
+              totalFormatted,
+              paymentStatus: 'pending',
+              downloadUrl,
+              bookingTypeName: type.name,
+              bookingDateFormatted: format(startDate, 'd MMMM yyyy'),
+              terms: branding.terms,
+              contactEmail: ownerEmail,
+              orgName: org.name,
+              orgLogoUrl: branding.logoUrl,
+              primaryColour: branding.primaryColour,
+            }),
+            attachments: [
+              {
+                filename: `${invoiceNumber}.pdf`,
+                content: await generateInvoicePdf({
+                  invoiceNumber,
+                  invoiceDate: format(new Date(), 'dd/MM/yyyy'),
+                  dueDate: format(new Date(), 'dd/MM/yyyy'),
+                  supplyDate: format(startDate, 'dd/MM/yyyy'),
+                  orgName: org.name,
+                  companyName: branding.companyName,
+                  contactEmail: ownerEmail,
+                  primaryColour: branding.primaryColour,
+                  accentColour: branding.accentColour,
+                  clientName: input.clientName,
+                  clientEmail: input.clientEmail,
+                  lineItems,
+                  subtotal: priceNum,
+                  vatRate: 0,
+                  vatAmount: 0,
+                  total: priceNum,
+                  currency: newInvoice.currency,
+                  paymentStatus: 'pending',
+                  bookingReference: `${type.name} — ${format(startDate, 'dd/MM/yyyy HH:mm')}`,
+                }),
+              },
+            ],
+          });
+        } catch (emailErr) {
+          console.error('[booking] Invoice email failed:', emailErr);
+        }
+      })();
+    } catch (err) {
+      // Invoice creation is best-effort — don't fail the booking
+      console.error('[booking] Invoice auto-creation failed:', err);
+    }
+  }
 
   // Send emails asynchronously — don't await to avoid slowing the booking response
   sendBookingEmails({

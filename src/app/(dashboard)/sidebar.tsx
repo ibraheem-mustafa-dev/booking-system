@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   List,
   LogOut,
+  Receipt,
   Settings,
 } from 'lucide-react';
 import {
@@ -36,6 +37,7 @@ import { logout } from './actions';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/bookings', label: 'Bookings', icon: CalendarDays },
+  { href: '/dashboard/invoices', label: 'Invoices', icon: Receipt },
   { href: '/dashboard/booking-types', label: 'Booking Types', icon: List },
   { href: '/dashboard/availability', label: 'Availability', icon: Clock },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },

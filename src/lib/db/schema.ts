@@ -116,6 +116,7 @@ export const organisations = pgTable('organisations', {
     companyName?: string;
     companyAddress?: string;
     vatNumber?: string;
+    companyRegistrationNumber?: string;
     terms?: string;
     customCss?: string;
   }>().default({
@@ -389,11 +390,14 @@ export const invoices = pgTable('invoices', {
   paymentMethod: varchar('payment_method', { length: 64 }),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   pdfUrl: text('pdf_url'),
+  dueDate: date('due_date').notNull(),
+  downloadToken: varchar('download_token', { length: 64 }),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('invoices_number_org_idx').on(table.orgId, table.invoiceNumber),
+  uniqueIndex('invoices_download_token_idx').on(table.downloadToken),
   index('invoices_org_idx').on(table.orgId),
   index('invoices_booking_idx').on(table.bookingId),
 ]);

@@ -2,10 +2,18 @@ import { Resend } from 'resend';
 import type { ReactElement } from 'react';
 
 // ---------------------------------------------------------------------------
-// Resend client — initialised from environment variable
+// Resend client — lazy-initialised to avoid crashing at import time
+// when RESEND_API_KEY is not set (e.g. during development without email)
 // ---------------------------------------------------------------------------
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const EMAIL_FROM =
   process.env.EMAIL_FROM ||
@@ -27,8 +35,8 @@ export interface SendEmailOptions {
   /** Optional file attachments */
   attachments?: {
     filename: string;
-    /** File content as a string (will be converted to Buffer for Resend) */
-    content: string;
+    /** File content as a string or Buffer (strings are converted to Buffer for Resend) */
+    content: string | Buffer;
   }[];
 }
 
@@ -49,7 +57,7 @@ export async function sendEmail(
   const { to, subject, react, replyTo, attachments } = options;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: EMAIL_FROM,
       to,
       subject,
@@ -57,7 +65,9 @@ export async function sendEmail(
       replyTo,
       attachments: attachments?.map((attachment) => ({
         filename: attachment.filename,
-        content: Buffer.from(attachment.content),
+        content: typeof attachment.content === 'string'
+          ? Buffer.from(attachment.content)
+          : attachment.content,
       })),
     });
 
