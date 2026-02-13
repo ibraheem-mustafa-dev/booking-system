@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { loadAvailability } from '@/lib/availability/loader';
+import { sendBookingEmails } from '@/lib/email/send-booking-emails';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +156,15 @@ export async function POST(
       startAt: bookings.startAt,
       endAt: bookings.endAt,
     });
+
+  // Send emails asynchronously — don't await to avoid slowing the booking response
+  sendBookingEmails({
+    bookingId: booking.id,
+    orgSlug,
+    typeSlug,
+  }).catch((err) => {
+    console.error('[booking] Email sending failed:', err);
+  });
 
   return NextResponse.json(
     {
