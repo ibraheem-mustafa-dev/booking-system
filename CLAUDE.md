@@ -94,13 +94,24 @@ Override examples: "mosque event but can take calls" (type: available), "every F
   - `protectedProcedure` — requires authenticated user
   - `orgProcedure` — requires authenticated user AND organisation membership
 
-**REST API v1** — for public booking pages and cross-origin embed widget:
+**REST API v1** — for public booking pages, cross-origin embed widget, and WordPress plugin:
 - Base path: `/api/v1/`
 - Health check: [src/app/api/v1/health/route.ts](src/app/api/v1/health/route.ts) — for UptimeRobot monitoring
 - Availability: `/api/v1/book/[orgSlug]/[typeSlug]/availability?date=YYYY-MM-DD&timezone=...`
 - Create booking: `/api/v1/book/[orgSlug]/[typeSlug]/create` (POST)
-- All REST routes return CORS headers (`Access-Control-Allow-Origin: *`) for embed widget
-- Versioned from day one — deployed widgets must not break on API changes
+- ICS download: `/api/v1/book/[orgSlug]/[typeSlug]/ics/[bookingId]` (GET)
+- All REST routes return CORS headers (`Access-Control-Allow-Origin: *`) for embed widget + WP plugin
+- Versioned from day one — deployed widgets and WP plugins must not break on API changes
+
+**REST API v1 — endpoints still needed** (required by WP plugin and embed widget):
+- `GET /api/v1/book/[orgSlug]` — organisation info + branding (strip `customCss` and internal ID from response)
+- `GET /api/v1/book/[orgSlug]/types` — list active booking types
+- `GET /api/v1/book/[orgSlug]/[typeSlug]` — single booking type details
+- `GET /api/v1/book/[orgSlug]/providers` — list providers (Phase 2)
+- `POST /api/v1/book/[orgSlug]/[typeSlug]/payment-intent` — create Stripe Payment Intent
+- `GET /api/v1/bookings/[id]/status?token=` — booking status lookup via cancellation token
+- `POST /api/v1/bookings/[id]/cancel?token=` — cancel booking via token
+- `POST /api/v1/bookings/[id]/reschedule?token=` — reschedule booking via token
 
 ### Authentication & Middleware
 - Supabase SSR client split into three files:
@@ -153,7 +164,7 @@ src/lib/
   ai/                 # Deepgram + Claude integrations
   qr/                 # QR code generation (Phase 5)
 src/widget/           # Lit Web Component source (Phase 3)
-wordpress-plugin/     # WP plugin for [booking] shortcode (Phase 3)
+# WP plugin lives in separate repo: small-giants-wp/plugins/sgs-booking/
 ```
 
 ### Deployment
@@ -206,8 +217,8 @@ Optional (enable as features are built):
 ### Phase 2 — Monetisation & Teams
 Stripe Connect, cancellation/reschedule links, team members, round-robin booking
 
-### Phase 3 — WordPress Embed & White-Label
-Lit Web Component (~5KB gzipped), Shadow DOM, WordPress plugin (`[booking]` shortcode + Gutenberg block), custom domains per tenant
+### Phase 3 — WordPress Plugin & White-Label
+WordPress plugin (`sgs-booking` in the `small-giants-wp` repo) is a thin API client — Gutenberg blocks that call this system's REST API. No local DB, no availability engine, no email sending. Spec: `small-giants-wp/specs/03-SGS-BOOKING.md`. Also: Lit Web Component embed (~5KB gzipped, Shadow DOM), custom domains per tenant
 
 ### Phase 4 — Advanced Features
 AI booking assistant, follow-up email sequences, JSON-LD schema markup, spam protection, Mollie payments, Apple Calendar (CalDAV), waiting lists, recurring appointments, group bookings, N8N webhooks, SMS reminders
@@ -224,8 +235,29 @@ QR code tickets for in-person events, PWA scanner app for attendance, optional R
 - **Booking types have unique slugs:** `/book/[org-slug]/[type-slug]`
 - **Middleware excludes `/book` routes** from auth — public booking pages are unauthenticated
 
+## External Consumers
+
+The REST API (`/api/v1/`) is consumed by three clients:
+1. **Public booking pages** — Next.js pages at `/book/[slug]/[typeSlug]` (same-origin)
+2. **WordPress plugin** — `sgs-booking` in the `small-giants-wp` repo (cross-origin, thin API client)
+3. **Embed widget** — Lit Web Component for third-party sites (cross-origin, Phase 3)
+
+All three clients rely on the same endpoints. Changes to the REST API responses must not break existing consumers. The WP plugin escapes all API response values with `esc_html()` / `esc_attr()` — but the API should still avoid returning raw `customCss` or internal IDs in public responses.
+
+### API Security Fixes Required
+
+These must be addressed before the WP plugin or embed widget go live:
+1. ICS endpoint must require `?token={cancellationToken}` (currently uses booking UUID as sole access control — leaks PII)
+2. Rate limiting on public endpoints (per-IP: 60 reads/min, 5 writes/min)
+3. Bot protection on `/create` (honeypot field and/or Cloudflare Turnstile)
+4. Validate `clientTimezone` against IANA timezone list
+5. Strip `customCss` and `organisation.id` from public API responses
+6. Add hashed `apiKey` column to `organisations` table for `Authorization: Bearer` auth
+7. Add expiry to `cancellationToken` / `rescheduleToken` (e.g., 90 days or 30 days post-booking)
+
 ## Conventions
 
+- Monday is the first day of the week (UK/ISO 8601). Internal `dayOfWeek` uses JS convention (`0 = Sunday`), but all UIs display Monday first
 - UK English in all code, comments, and user-facing text (colour, organisation, cancelled, etc.) — CSS properties like `color` are the exception
 - Organisation branding uses UK spelling in column names (e.g. `primaryColour`, `accentColour`)
 - All timestamps use `withTimezone: true`

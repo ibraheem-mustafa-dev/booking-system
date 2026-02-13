@@ -10,7 +10,16 @@
       "Bash(node -e:*)",
       "Bash(test:*)",
       "Bash(curl:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__get-library-docs",
+      "Bash(firecrawl --status:*)",
+      "Bash(firecrawl search:*)",
+      "Bash(firecrawl scrape:*)",
+      "Skill(superpowers-chrome:browsing)",
+      "Skill(superpowers-chrome:browsing:*)"
     ]
   }
 }
