@@ -17,15 +17,15 @@ export type EmailJobData =
 // Lazy singleton email queue
 // ---------------------------------------------------------------------------
 
-let emailQueue: Queue<EmailJobData> | null = null;
+let emailQueue: Queue | null = null;
 
 /**
  * Returns a shared BullMQ Queue for email jobs.
  * Configured with exponential backoff retries and automatic cleanup.
  */
-export function getEmailQueue(): Queue<EmailJobData> {
+export function getEmailQueue(): Queue {
   if (!emailQueue) {
-    emailQueue = new Queue<EmailJobData>('email', {
+    emailQueue = new Queue('email', {
       connection: getRedisConnection(),
       defaultJobOptions: {
         attempts: 3,
