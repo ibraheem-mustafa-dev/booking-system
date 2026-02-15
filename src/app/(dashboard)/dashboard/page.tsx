@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { eq } from 'drizzle-orm';
+import { eq, and, gte, lte, count } from 'drizzle-orm';
 import { ArrowRight, CalendarPlus } from 'lucide-react';
+import { startOfWeek, endOfWeek } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { users, bookingTypes, orgMembers } from '@/lib/db/schema';
+import { users, bookingTypes, bookings, orgMembers } from '@/lib/db/schema';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -46,13 +47,48 @@ export default async function DashboardPage() {
     .limit(1);
 
   let hasBookingTypes = false;
+  let upcomingCount = 0;
+  let thisWeekCount = 0;
+  let totalCount = 0;
+
   if (membership.length > 0) {
+    const orgId = membership[0].orgId;
+
     const types = await db
       .select({ id: bookingTypes.id })
       .from(bookingTypes)
-      .where(eq(bookingTypes.orgId, membership[0].orgId))
+      .where(eq(bookingTypes.orgId, orgId))
       .limit(1);
     hasBookingTypes = types.length > 0;
+
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+    const [upcoming, thisWeek, total] = await Promise.all([
+      db.select({ value: count() }).from(bookings).where(
+        and(
+          eq(bookings.orgId, orgId),
+          eq(bookings.status, 'confirmed'),
+          gte(bookings.startAt, now),
+        ),
+      ),
+      db.select({ value: count() }).from(bookings).where(
+        and(
+          eq(bookings.orgId, orgId),
+          eq(bookings.status, 'confirmed'),
+          gte(bookings.startAt, weekStart),
+          lte(bookings.startAt, weekEnd),
+        ),
+      ),
+      db.select({ value: count() }).from(bookings).where(
+        eq(bookings.orgId, orgId),
+      ),
+    ]);
+
+    upcomingCount = upcoming[0]?.value ?? 0;
+    thisWeekCount = thisWeek[0]?.value ?? 0;
+    totalCount = total[0]?.value ?? 0;
   }
 
   return (
@@ -105,19 +141,19 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardDescription>Upcoming bookings</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{upcomingCount}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
                 <CardDescription>This week</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{thisWeekCount}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
                 <CardDescription>Total bookings</CardDescription>
-                <CardTitle className="text-3xl">0</CardTitle>
+                <CardTitle className="text-3xl">{totalCount}</CardTitle>
               </CardHeader>
             </Card>
           </div>

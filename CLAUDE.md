@@ -15,6 +15,10 @@ Self-hosted booking/scheduling system for Small Giants Studio. Custom-built (not
 - [reference/base-claude-plan.md](reference/base-claude-plan.md) — approved implementation plan with phased roadmap, architecture diagrams, and database schema
 - [reference/34f63a1c-aa5c-4b3e-a191-3b6b6a24c901.txt](reference/34f63a1c-aa5c-4b3e-a191-3b6b6a24c901.txt) — full original planning conversation with research findings, user decisions, and all requirements context
 
+## Git
+
+**Remote:** `github.com/ibraheem-mustafa-dev/booking-system` (private). See global CLAUDE.md for workflow rules.
+
 ## Commands
 
 ```bash
