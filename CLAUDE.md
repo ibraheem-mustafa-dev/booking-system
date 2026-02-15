@@ -134,7 +134,7 @@ Override examples: "mosque event but can take calls" (type: available), "every F
 - Six pre-built presets for niches: small-giants, corporate, creative, wellness, events, luxury
 - Five font families loaded via `next/font` in root layout: Inter, DM Sans, Playfair Display, Poppins, Plus Jakarta Sans
 - Dark mode via `next-themes` (class-based, system preference default)
-- Brand colours: #1B6B6B primary (teal), #E8B931 accent (gold)
+- Brand colours: #0F7E80 primary (teal), #F87A1F accent (orange)
 
 ### UI Components
 - shadcn/ui config: [components.json](components.json) — new-york style, lucide icons, Radix UI

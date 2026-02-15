@@ -82,7 +82,7 @@ export default function NewBookingPage() {
       const selectedType = bookingTypes?.find((t) => t.id === bookingTypeId);
       if (selectedType) {
         const [hours, minutes] = value.split(':').map(Number);
-        const endMinutes = hours * 60 + minutes + selectedType.duration;
+        const endMinutes = hours * 60 + minutes + selectedType.durationMins;
         const endHours = Math.floor(endMinutes / 60);
         const endMins = endMinutes % 60;
         setEndTime(
@@ -137,7 +137,7 @@ export default function NewBookingPage() {
                       <SelectContent>
                         {bookingTypes?.map((type) => (
                           <SelectItem key={type.id} value={type.id}>
-                            {type.name} ({type.duration} min)
+                            {type.name} ({type.durationMins} min)
                           </SelectItem>
                         ))}
                       </SelectContent>

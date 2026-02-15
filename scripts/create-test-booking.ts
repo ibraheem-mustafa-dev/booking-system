@@ -85,7 +85,7 @@ async function main() {
   console.log('✅ Test booking created!\n');
   console.log(`Booking ID: ${booking.id}`);
   console.log(`Client: ${booking.clientName} (${booking.clientEmail})`);
-  console.log(`Time: ${booking.startTime.toLocaleString('en-GB')}`);
+  console.log(`Time: ${booking.startAt.toLocaleString('en-GB')}`);
   console.log(`Status: ${booking.status}\n`);
   console.log('You can now test the recording upload at:');
   console.log(`http://localhost:3000/dashboard/recordings\n`);

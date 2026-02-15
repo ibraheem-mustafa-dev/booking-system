@@ -41,8 +41,8 @@ export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
 // Pre-built style presets for common niches
 export const THEME_PRESETS: Record<string, ThemeConfig> = {
   'small-giants': {
-    primaryColour: '#1B6B6B',
-    accentColour: '#E8B931',
+    primaryColour: '#0F7E80',
+    accentColour: '#F87A1F',
     textColour: '#1a1a1a',
     backgroundColour: '#ffffff',
     fontFamily: 'Inter',
@@ -50,7 +50,7 @@ export const THEME_PRESETS: Record<string, ThemeConfig> = {
     buttonStyle: 'solid',
     darkMode: {
       primaryColour: '#2a9d9d',
-      accentColour: '#E8B931',
+      accentColour: '#F87A1F',
       textColour: '#f0f0f0',
       backgroundColour: '#0f1419',
     },

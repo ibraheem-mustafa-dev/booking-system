@@ -54,7 +54,7 @@ const bookingTypeInput = z.object({
   colour: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex colour')
-    .default('#1B6B6B'),
+    .default('#0F7E80'),
   isActive: z.boolean().default(true),
   maxAdvanceDays: z.number().int().min(1).max(365).default(60),
   minNoticeHours: z.number().int().min(0).max(168).default(2),

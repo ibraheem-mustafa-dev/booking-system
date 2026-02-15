@@ -58,7 +58,7 @@ export async function transcribeAudio(
   const transcript = result.results.channels?.[0]?.alternatives?.[0]?.transcript || '';
 
   const speakers = (result.results.utterances || []).map((utterance) => ({
-    speaker: utterance.speaker,
+    speaker: utterance.speaker ?? 0,
     text: utterance.transcript,
     start: utterance.start,
     end: utterance.end,

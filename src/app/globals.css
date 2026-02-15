@@ -128,8 +128,8 @@
 
 /* Brand CSS custom properties — overridden per-organisation at runtime */
 :root {
-  --brand-primary: #1B6B6B;
-  --brand-accent: #E8B931;
+  --brand-primary: #0F7E80;
+  --brand-accent: #F87A1F;
   --brand-text: #1a1a1a;
   --brand-background: #ffffff;
   --brand-font: "Inter", sans-serif;

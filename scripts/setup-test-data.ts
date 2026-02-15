@@ -68,12 +68,12 @@ async function main() {
         name: 'Test Consultation',
         slug: 'test-consultation',
         description: 'Test booking type for recording upload testing',
-        duration: 60,
-        price: 0,
-        currency: 'GBP',
+        durationMins: 60,
+        priceAmount: '0',
+        priceCurrency: 'GBP',
         requiresPayment: false,
-        customFields: [],
-        active: true,
+        customFields: { fields: [] },
+        isActive: true,
       })
       .returning();
 
