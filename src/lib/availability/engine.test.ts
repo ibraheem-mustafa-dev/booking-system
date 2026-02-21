@@ -11,21 +11,6 @@ import {
 
 const TIMEZONE = 'Europe/London';
 
-function makeDate(year: number, month: number, day: number): Date {
-  // Create a date at midnight in the target timezone
-  return timeToDate(new Date(year, month - 1, day), '00:00', TIMEZONE);
-}
-
-function makeTime(dateBase: Date, hours: number, minutes: number): Date {
-  const d = new Date(dateBase);
-  // Adjust to the specific time
-  return timeToDate(
-    new Date(d.getFullYear(), d.getMonth(), d.getDate()),
-    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
-    TIMEZONE,
-  );
-}
-
 // A Monday in February 2026 (Monday = dayOfWeek 1)
 const FEB_2 = new Date(2026, 1, 2); // Monday 2 Feb 2026
 

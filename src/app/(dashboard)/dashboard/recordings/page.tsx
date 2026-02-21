@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Upload,
-  Mic,
   FileAudio,
   Loader2,
   CheckCircle2,
@@ -234,7 +233,7 @@ export default function RecordingsPage() {
                           Processing recording...
                         </p>
                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                          This may take 30-60 seconds. We're transcribing with speaker
+                          This may take 30-60 seconds. We&apos;re transcribing with speaker
                           identification and generating an AI summary.
                         </p>
                       </div>

@@ -149,4 +149,7 @@
     min-height: 44px;
     min-width: 44px;
   }
+  input, select, textarea {
+    min-height: 44px;
+  }
 }

@@ -2,7 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
-import { users, orgMembers, organisations } from '@/lib/db/schema';
+import { orgMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import superjson from 'superjson';
 

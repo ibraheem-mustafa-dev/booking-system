@@ -1,4 +1,4 @@
-import { Heading, Markdown, Text } from '@react-email/components';
+import { Markdown, Text } from '@react-email/components';
 import { EmailLayout } from './layout';
 
 // ---------------------------------------------------------------------------

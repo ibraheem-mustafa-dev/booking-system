@@ -347,6 +347,7 @@ export function InvoiceTemplate(props: InvoicePdfProps) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image has no alt prop */}
             {logoUrl ? (
               <Image src={logoUrl} style={styles.logo} />
             ) : null}

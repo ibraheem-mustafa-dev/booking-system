@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
@@ -152,13 +152,15 @@ export function WorkingHoursEditor() {
     },
   });
 
-  // Populate form from DB data
-  useEffect(() => {
+  // Populate form from DB data (React "adjust state during render" pattern)
+  const [prevHours, setPrevHours] = useState(existingHours);
+  if (existingHours !== prevHours) {
+    setPrevHours(existingHours);
     if (existingHours && existingHours.length > 0) {
       setSchedule(dbRowsToSchedule(existingHours));
       setTimezone(existingHours[0].timezone);
     }
-  }, [existingHours]);
+  }
 
   // ---------------------------------------------------------------------------
   // Schedule update helpers

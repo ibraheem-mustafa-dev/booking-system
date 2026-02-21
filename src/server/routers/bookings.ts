@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, orgProcedure } from '../trpc';
 import { db } from '@/lib/db';
-import { bookings, bookingTypes } from '@/lib/db/schema';
+import { bookings } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 export const bookingsRouter = router({

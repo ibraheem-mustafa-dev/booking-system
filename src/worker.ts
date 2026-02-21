@@ -15,7 +15,6 @@ import {
 import { eq } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { generateIcsFile } from '@/lib/calendar/ics';
 import { sendEmail } from '@/lib/email/resend';
 import { replacePlaceholders } from '@/lib/email/helpers';
 import { ReminderEmail } from '@/lib/email/templates/reminder';

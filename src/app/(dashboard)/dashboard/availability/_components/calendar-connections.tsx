@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import {
   RefreshCw,
   Trash2,
-  ExternalLink,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
