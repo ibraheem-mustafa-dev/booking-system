@@ -12,6 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
     "@deepgram/sdk": "^4.11.3",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
     "@react-email/components": "^1.0.7",
     "@react-pdf/renderer": "^4.3.2",

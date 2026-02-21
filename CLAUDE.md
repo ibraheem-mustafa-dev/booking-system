@@ -165,7 +165,10 @@ src/lib/
   calendar/           # Google, Outlook, Apple integrations
   email/              # React Email templates + Resend
   invoice/            # PDF generation
-  ai/                 # Deepgram + Claude integrations
+  ai/                 # Deepgram + Gemini + Claude integrations
+  #   claude.ts       — Anthropic client (Sonnet 4.6), report generation
+  #   deepgram.ts     — Deepgram client, audio transcription
+  #   gemini.ts       — Google client (Gemini 2.5 Flash), meeting summaries + formatSummary
   qr/                 # QR code generation (Phase 5)
 src/widget/           # Lit Web Component source (Phase 3)
 # WP plugin lives in separate repo: small-giants-wp/plugins/sgs-booking/

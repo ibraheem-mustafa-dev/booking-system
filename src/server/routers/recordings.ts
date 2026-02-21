@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { meetingRecordings, bookings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { transcribeAudio } from '@/lib/ai/deepgram';
-import { generateMeetingSummary, formatSummary } from '@/lib/ai/claude';
+import { generateMeetingSummary, formatSummary } from '@/lib/ai/gemini';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
