@@ -356,6 +356,20 @@ export const meetingRecordings = pgTable('meeting_recordings', {
   bookingId: text('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
   transcriptText: text('transcript_text'),
   summaryText: text('summary_text'),
+  summaryJson: jsonb('summary_json').$type<{
+    summary: string;
+    keyPoints: { title: string; detail: string }[];
+    actionItems: { text: string; owner?: string }[];
+    decisions: string[];
+    memorableFacts: {
+      quotes: string[];
+      stats: string[];
+      names: string[];
+      dates: string[];
+    };
+    mentionedUrls: { url: string; context: string }[];
+  }>(),
+  speakerLabels: jsonb('speaker_labels').$type<Record<string, string>>().default({}),
   summaryShared: boolean('summary_shared').default(false).notNull(),
   recordingUrl: text('recording_url'),
   recordedVia: recordedViaEnum('recorded_via').notNull(),
