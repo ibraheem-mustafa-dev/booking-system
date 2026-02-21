@@ -100,13 +100,14 @@ export const recordingsRouter = router({
 
       const summaryText = formatSummary(summaryData);
 
-      // Store in database
+      // Store in database (both formatted text and structured JSON)
       const [recording] = await db
         .insert(meetingRecordings)
         .values({
           bookingId: input.bookingId,
           transcriptText: transcription.transcript,
           summaryText,
+          summaryJson: summaryData,
           summaryShared: false,
           recordingUrl,
           recordedVia: input.recordedVia,
@@ -236,6 +237,42 @@ export const recordingsRouter = router({
       await db
         .update(meetingRecordings)
         .set({ summaryShared: input.shared })
+        .where(eq(meetingRecordings.id, input.id));
+
+      return { success: true };
+    }),
+
+  /**
+   * Update speaker labels for a recording (e.g. "Speaker 0" → "Sarah")
+   */
+  updateSpeakerLabels: orgProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        speakerLabels: z.record(z.string(), z.string()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const recording = await db
+        .select({
+          recording: meetingRecordings,
+          booking: { orgId: bookings.orgId },
+        })
+        .from(meetingRecordings)
+        .innerJoin(bookings, eq(meetingRecordings.bookingId, bookings.id))
+        .where(eq(meetingRecordings.id, input.id))
+        .limit(1);
+
+      if (!recording[0]) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Recording not found' });
+      }
+      if (recording[0].booking.orgId !== ctx.orgId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this recording' });
+      }
+
+      await db
+        .update(meetingRecordings)
+        .set({ speakerLabels: input.speakerLabels })
         .where(eq(meetingRecordings.id, input.id));
 
       return { success: true };
