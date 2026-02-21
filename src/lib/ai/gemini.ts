@@ -111,8 +111,9 @@ ${formattedTranscript}`
   }
 
   // Defensive parsing — handles both new structured format and old flat format
+  const facts = parsed.memorableFacts as Record<string, unknown> | undefined;
   return {
-    summary: parsed.summary || '',
+    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
     keyPoints: Array.isArray(parsed.keyPoints)
       ? parsed.keyPoints.map((kp: { title?: string; detail?: string } | string) =>
           typeof kp === 'string'
@@ -125,12 +126,12 @@ ${formattedTranscript}`
           typeof ai === 'string' ? { text: ai } : { text: ai.text || '', owner: ai.owner }
         )
       : [],
-    decisions: parsed.decisions || [],
+    decisions: Array.isArray(parsed.decisions) ? (parsed.decisions as string[]) : [],
     memorableFacts: {
-      quotes: parsed.memorableFacts?.quotes || [],
-      stats: parsed.memorableFacts?.stats || [],
-      names: parsed.memorableFacts?.names || [],
-      dates: parsed.memorableFacts?.dates || [],
+      quotes: Array.isArray(facts?.quotes) ? (facts.quotes as string[]) : [],
+      stats: Array.isArray(facts?.stats) ? (facts.stats as string[]) : [],
+      names: Array.isArray(facts?.names) ? (facts.names as string[]) : [],
+      dates: Array.isArray(facts?.dates) ? (facts.dates as string[]) : [],
     },
     mentionedUrls: Array.isArray(parsed.mentionedUrls)
       ? parsed.mentionedUrls.map((u: { url?: string; context?: string } | string) =>
