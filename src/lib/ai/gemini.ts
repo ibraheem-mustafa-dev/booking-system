@@ -14,15 +14,23 @@ function getClient(): GoogleGenerativeAI {
 
 export interface MeetingSummary {
   summary: string;
-  keyPoints: string[];
-  actionItems: string[];
+  keyPoints: { title: string; detail: string }[];
+  actionItems: { text: string; owner?: string }[];
   decisions: string[];
+  memorableFacts: {
+    quotes: string[];
+    stats: string[];
+    names: string[];
+    dates: string[];
+  };
+  mentionedUrls: { url: string; context: string }[];
 }
 
 /**
  * Generate meeting summary from transcript using Gemini 2.5 Flash
  *
- * Uses Gemini 2.5 Flash for fast, cost-effective summarisation with speaker context
+ * Returns structured JSON with key points, facts, URLs, action items,
+ * and decisions extracted from the transcript.
  *
  * @param transcript - Full meeting transcript text
  * @param speakers - Array of speaker segments with timestamps
@@ -46,22 +54,36 @@ export async function generateMeetingSummary(
     .join('\n\n');
 
   const result = await model.generateContent(
-    `Summarise this meeting transcript. Extract:
-- Overall summary (2-3 sentences)
-- Key discussion points (bullet points)
-- Action items with who's responsible (if mentioned)
-- Decisions made (if any)
+    `You are a meeting analyst. Analyse this transcript and extract structured data.
 
-Format your response as JSON with this structure:
+RULES:
+- Do NOT infer, assume, or speculate
+- Do NOT fabricate names, dates, or details not in the transcript
+- Use UK English spelling (summarise, organise, colour, etc.)
+- If a section has no content, use empty arrays
+- For keyPoints, each must have a short title (3-6 words) and a detail paragraph (2-3 sentences explaining the discussion, referencing which speaker said what)
+- For actionItems, include who is responsible if mentioned (use "Speaker N" if no name given)
+- For memorableFacts, extract ONLY items explicitly stated in the transcript:
+  - quotes: Notable or impactful phrases said verbatim (wrap in quotation marks)
+  - stats: Numbers, percentages, monetary amounts, quantities
+  - names: People, companies, products, titles mentioned
+  - dates: Specific dates, deadlines, timeframes mentioned
+- For mentionedUrls: Extract any website URLs, domain names, or web references mentioned. Include the context of why it was mentioned
+
+Format your response as JSON:
 {
-  "summary": "Overall summary here",
-  "keyPoints": ["Point 1", "Point 2", ...],
-  "actionItems": ["Action 1", "Action 2", ...],
-  "decisions": ["Decision 1", "Decision 2", ...]
+  "summary": "2-3 sentence overview",
+  "keyPoints": [{ "title": "Short title", "detail": "2-3 sentences about the discussion" }],
+  "actionItems": [{ "text": "Action description", "owner": "Speaker N or name" }],
+  "decisions": ["Decision 1"],
+  "memorableFacts": {
+    "quotes": ["\\"We need to move fast\\""],
+    "stats": ["£45,000 budget", "85% completion"],
+    "names": ["Sarah from Finance", "Acme Corp"],
+    "dates": ["15 March deadline", "Q3 2026"]
+  },
+  "mentionedUrls": [{ "url": "example.com/proposal", "context": "Shared as reference for pricing" }]
 }
-
-If no action items or decisions were mentioned, use empty arrays.
-Do NOT infer, assume, or speculate. Do NOT fabricate names, dates, or details not in the transcript.
 
 Transcript:
 
@@ -76,18 +98,44 @@ ${formattedTranscript}`
     throw new Error('Could not extract JSON from Gemini response');
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as MeetingSummary;
+  const parsed = JSON.parse(jsonMatch[0]);
 
+  // Defensive parsing — handles both new structured format and old flat format
   return {
     summary: parsed.summary || '',
-    keyPoints: parsed.keyPoints || [],
-    actionItems: parsed.actionItems || [],
+    keyPoints: Array.isArray(parsed.keyPoints)
+      ? parsed.keyPoints.map((kp: { title?: string; detail?: string } | string) =>
+          typeof kp === 'string'
+            ? { title: kp, detail: '' }
+            : { title: kp.title || '', detail: kp.detail || '' }
+        )
+      : [],
+    actionItems: Array.isArray(parsed.actionItems)
+      ? parsed.actionItems.map((ai: { text?: string; owner?: string } | string) =>
+          typeof ai === 'string' ? { text: ai } : { text: ai.text || '', owner: ai.owner }
+        )
+      : [],
     decisions: parsed.decisions || [],
+    memorableFacts: {
+      quotes: parsed.memorableFacts?.quotes || [],
+      stats: parsed.memorableFacts?.stats || [],
+      names: parsed.memorableFacts?.names || [],
+      dates: parsed.memorableFacts?.dates || [],
+    },
+    mentionedUrls: Array.isArray(parsed.mentionedUrls)
+      ? parsed.mentionedUrls.map((u: { url?: string; context?: string } | string) =>
+          typeof u === 'string'
+            ? { url: u, context: '' }
+            : { url: u.url || '', context: u.context || '' }
+        )
+      : [],
   };
 }
 
 /**
- * Format meeting summary as human-readable text
+ * Format meeting summary as human-readable markdown text
+ *
+ * Used for the summaryText column (backwards compat, email sharing, copy-paste)
  */
 export function formatSummary(summary: MeetingSummary): string {
   let formatted = `${summary.summary}\n\n`;
@@ -95,9 +143,8 @@ export function formatSummary(summary: MeetingSummary): string {
   if (summary.keyPoints.length > 0) {
     formatted += '## Key Points\n\n';
     summary.keyPoints.forEach((point) => {
-      formatted += `- ${point}\n`;
+      formatted += `### ${point.title}\n${point.detail}\n\n`;
     });
-    formatted += '\n';
   }
 
   if (summary.decisions.length > 0) {
@@ -111,7 +158,32 @@ export function formatSummary(summary: MeetingSummary): string {
   if (summary.actionItems.length > 0) {
     formatted += '## Action Items\n\n';
     summary.actionItems.forEach((item) => {
-      formatted += `- ${item}\n`;
+      const owner = item.owner ? ` (${item.owner})` : '';
+      formatted += `- ${item.text}${owner}\n`;
+    });
+    formatted += '\n';
+  }
+
+  const facts = summary.memorableFacts;
+  const hasAnyFacts =
+    facts.quotes.length + facts.stats.length + facts.names.length + facts.dates.length > 0;
+  if (hasAnyFacts) {
+    formatted += '## Facts & Phrases\n\n';
+    if (facts.quotes.length > 0)
+      formatted += facts.quotes.map((q) => `- ${q}`).join('\n') + '\n';
+    if (facts.stats.length > 0)
+      formatted += facts.stats.map((s) => `- ${s}`).join('\n') + '\n';
+    if (facts.names.length > 0)
+      formatted += facts.names.map((n) => `- ${n}`).join('\n') + '\n';
+    if (facts.dates.length > 0)
+      formatted += facts.dates.map((d) => `- ${d}`).join('\n') + '\n';
+    formatted += '\n';
+  }
+
+  if (summary.mentionedUrls.length > 0) {
+    formatted += '## Mentioned URLs\n\n';
+    summary.mentionedUrls.forEach((u) => {
+      formatted += `- ${u.url}${u.context ? ` — ${u.context}` : ''}\n`;
     });
     formatted += '\n';
   }
