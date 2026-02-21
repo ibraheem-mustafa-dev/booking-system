@@ -289,11 +289,11 @@ export default function RecordingDetailPage({
             </CardContent>
           </Card>
 
-          {/* Speaker Label Editor */}
-          {recording.transcriptText && (
+          {/* Speaker Label Editor — searches summaryText for "Speaker N" patterns */}
+          {recording.summaryText && (
             <SpeakerLabelEditor
               recordingId={id}
-              transcriptText={recording.transcriptText}
+              searchText={recording.summaryText}
               speakerLabels={speakerLabels}
               onLabelsUpdated={handleLabelsUpdated}
             />

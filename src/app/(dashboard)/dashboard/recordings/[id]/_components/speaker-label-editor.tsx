@@ -10,26 +10,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface SpeakerLabelEditorProps {
   recordingId: string;
-  transcriptText: string;
+  /** Text to scan for "Speaker N" patterns (summary text, not raw transcript) */
+  searchText: string;
   speakerLabels: Record<string, string>;
   onLabelsUpdated: (labels: Record<string, string>) => void;
 }
 
 export function SpeakerLabelEditor({
   recordingId,
-  transcriptText,
+  searchText,
   speakerLabels,
   onLabelsUpdated,
 }: SpeakerLabelEditorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [labels, setLabels] = useState<Record<string, string>>(speakerLabels);
 
-  // Extract unique speaker numbers from transcript
+  // Extract unique speaker numbers from summary text (Gemini uses "Speaker N")
   const speakerNumbers = useMemo(() => {
-    const matches = transcriptText.match(/Speaker (\d+)/g) || [];
+    const matches = searchText.match(/Speaker (\d+)/g) || [];
     const numbers = new Set(matches.map((m) => m.replace('Speaker ', '')));
     return Array.from(numbers).sort((a, b) => Number(a) - Number(b));
-  }, [transcriptText]);
+  }, [searchText]);
 
   const updateLabels = trpc.recordings.updateSpeakerLabels.useMutation({
     onSuccess: () => {
