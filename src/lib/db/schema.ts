@@ -120,8 +120,8 @@ export const organisations = pgTable('organisations', {
     terms?: string;
     customCss?: string;
   }>().default({
-    primaryColour: '#1B6B6B',
-    accentColour: '#E8B931',
+    primaryColour: '#0F7E80',
+    accentColour: '#F87A1F',
     textColour: '#1a1a1a',
     backgroundColour: '#ffffff',
     fontFamily: 'Inter',
@@ -201,7 +201,7 @@ export const bookingTypes = pgTable('booking_types', {
   locationType: locationTypeEnum('location_type').default('online').notNull(),
   locationDetails: text('location_details'), // address for in-person, or notes
   videoProvider: videoProviderEnum('video_provider').default('google_meet').notNull(),
-  colour: varchar('colour', { length: 7 }).default('#1B6B6B').notNull(),
+  colour: varchar('colour', { length: 7 }).default('#0F7E80').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   maxAdvanceDays: integer('max_advance_days').default(60).notNull(),
   minNoticeHours: integer('min_notice_hours').default(2).notNull(),
@@ -356,6 +356,20 @@ export const meetingRecordings = pgTable('meeting_recordings', {
   bookingId: text('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
   transcriptText: text('transcript_text'),
   summaryText: text('summary_text'),
+  summaryJson: jsonb('summary_json').$type<{
+    summary: string;
+    keyPoints: { title: string; detail: string }[];
+    actionItems: { text: string; owner?: string }[];
+    decisions: string[];
+    memorableFacts: {
+      quotes: string[];
+      stats: string[];
+      names: string[];
+      dates: string[];
+    };
+    mentionedUrls: { url: string; context: string }[];
+  }>(),
+  speakerLabels: jsonb('speaker_labels').$type<Record<string, string>>().default({}),
   summaryShared: boolean('summary_shared').default(false).notNull(),
   recordingUrl: text('recording_url'),
   recordedVia: recordedViaEnum('recorded_via').notNull(),

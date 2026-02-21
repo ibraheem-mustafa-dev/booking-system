@@ -160,7 +160,7 @@ async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
 
   const orgName = branding.companyName || org.name;
   const orgLogoUrl = branding.logoUrl;
-  const primaryColour = branding.primaryColour || '#1B6B6B';
+  const primaryColour = branding.primaryColour || '#0F7E80';
   const hostName = host.name || host.email;
 
   // -------------------------------------------------------------------------

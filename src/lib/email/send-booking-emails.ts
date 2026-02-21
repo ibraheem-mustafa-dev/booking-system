@@ -196,7 +196,7 @@ export async function sendBookingEmails(
 
     const orgName = branding.companyName || org.name;
     const orgLogoUrl = branding.logoUrl;
-    const primaryColour = branding.primaryColour || '#1B6B6B';
+    const primaryColour = branding.primaryColour || '#0F7E80';
 
     // -----------------------------------------------------------------------
     // 4. Generate .ics file content

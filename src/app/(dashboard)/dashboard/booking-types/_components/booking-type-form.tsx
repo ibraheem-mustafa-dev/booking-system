@@ -57,8 +57,8 @@ export type BookingTypeFormValues = z.infer<typeof formSchema>;
 // ---------------------------------------------------------------------------
 
 const presetColours = [
-  '#1B6B6B', // teal (brand)
-  '#E8B931', // gold (brand accent)
+  '#0F7E80', // teal (brand)
+  '#F87A1F', // orange (brand accent)
   '#2563EB', // blue
   '#7C3AED', // purple
   '#DC2626', // red
@@ -106,7 +106,7 @@ export function BookingTypeForm({
       locationType: 'online',
       locationDetails: '',
       videoProvider: 'google_meet',
-      colour: '#1B6B6B',
+      colour: '#0F7E80',
       isActive: true,
       maxAdvanceDays: 60,
       minNoticeHours: 2,

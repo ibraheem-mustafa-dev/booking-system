@@ -15,6 +15,10 @@ Self-hosted booking/scheduling system for Small Giants Studio. Custom-built (not
 - [reference/base-claude-plan.md](reference/base-claude-plan.md) — approved implementation plan with phased roadmap, architecture diagrams, and database schema
 - [reference/34f63a1c-aa5c-4b3e-a191-3b6b6a24c901.txt](reference/34f63a1c-aa5c-4b3e-a191-3b6b6a24c901.txt) — full original planning conversation with research findings, user decisions, and all requirements context
 
+## Git
+
+**Remote:** `github.com/ibraheem-mustafa-dev/booking-system` (private). See global CLAUDE.md for workflow rules.
+
 ## Commands
 
 ```bash
@@ -130,7 +134,7 @@ Override examples: "mosque event but can take calls" (type: available), "every F
 - Six pre-built presets for niches: small-giants, corporate, creative, wellness, events, luxury
 - Five font families loaded via `next/font` in root layout: Inter, DM Sans, Playfair Display, Poppins, Plus Jakarta Sans
 - Dark mode via `next-themes` (class-based, system preference default)
-- Brand colours: #1B6B6B primary (teal), #E8B931 accent (gold)
+- Brand colours: #0F7E80 primary (teal), #F87A1F accent (orange)
 
 ### UI Components
 - shadcn/ui config: [components.json](components.json) — new-york style, lucide icons, Radix UI
@@ -161,7 +165,10 @@ src/lib/
   calendar/           # Google, Outlook, Apple integrations
   email/              # React Email templates + Resend
   invoice/            # PDF generation
-  ai/                 # Deepgram + Claude integrations
+  ai/                 # Deepgram + Gemini + Claude integrations
+  #   claude.ts       — Anthropic client (Sonnet 4.6), report generation
+  #   deepgram.ts     — Deepgram client, audio transcription
+  #   gemini.ts       — Google client (Gemini 2.5 Flash), meeting summaries + formatSummary
   qr/                 # QR code generation (Phase 5)
 src/widget/           # Lit Web Component source (Phase 3)
 # WP plugin lives in separate repo: small-giants-wp/plugins/sgs-booking/
