@@ -1,16 +1,17 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft,
-  Download,
-  Share2,
   Trash2,
-  FileAudio,
-  Users,
-  Calendar,
   Loader2,
+  Copy,
+  Check,
+  ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
@@ -28,6 +29,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -38,6 +44,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { MeetingSummaryView } from './_components/meeting-summary-view';
+import { SpeakerLabelEditor } from './_components/speaker-label-editor';
+import { formatSummary, type MeetingSummary } from '@/lib/ai/gemini';
 
 export default function RecordingDetailPage({
   params,
@@ -46,6 +55,8 @@ export default function RecordingDetailPage({
 }) {
   const router = useRouter();
   const { id } = use(params);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
 
   const { data: recording, isLoading } = trpc.recordings.getById.useQuery({ id });
 
@@ -72,11 +83,32 @@ export default function RecordingDetailPage({
 
   const handleToggleSharing = async (shared: boolean) => {
     await toggleSharing.mutateAsync({ id, shared });
-    // Optimistically update
     utils.recordings.getById.setData({ id }, (old) => {
       if (!old) return old;
       return { ...old, summaryShared: shared };
     });
+  };
+
+  const handleLabelsUpdated = (labels: Record<string, string>) => {
+    utils.recordings.getById.setData({ id }, (old) => {
+      if (!old) return old;
+      return { ...old, speakerLabels: labels };
+    });
+  };
+
+  const handleCopyFullSummary = async () => {
+    const summaryJson = recording?.summaryJson as MeetingSummary | null;
+    const text = summaryJson
+      ? formatSummary(summaryJson)
+      : recording?.summaryText || '';
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedSummary(true);
+      toast.success('Full summary copied');
+      setTimeout(() => setCopiedSummary(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
   };
 
   const handleDelete = async () => {
@@ -94,7 +126,8 @@ export default function RecordingDetailPage({
         <main className="flex-1 overflow-auto p-6">
           <div className="mx-auto max-w-4xl space-y-6">
             <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-96 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-48 w-full" />
           </div>
         </main>
       </div>
@@ -129,6 +162,10 @@ export default function RecordingDetailPage({
       </div>
     );
   }
+
+  const summaryJson = recording.summaryJson as MeetingSummary | null;
+  const speakerLabels = (recording.speakerLabels ?? {}) as Record<string, string>;
+  const hasSummary = !!summaryJson || !!recording.summaryText;
 
   return (
     <div className="flex h-screen flex-col">
@@ -186,8 +223,8 @@ export default function RecordingDetailPage({
 
       {/* Content */}
       <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-4xl space-y-6">
-          {/* Metadata */}
+        <div className="mx-auto max-w-4xl space-y-4">
+          {/* Metadata + Audio */}
           <Card>
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -197,84 +234,129 @@ export default function RecordingDetailPage({
                     Recorded {new Date(recording.createdAt).toLocaleString('en-GB')}
                   </CardDescription>
                 </div>
-                <Badge variant="secondary" className="capitalize">
-                  {recording.recordedVia.replace('_', ' ')}
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="capitalize">
+                    {recording.recordedVia.replace('_', ' ')}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {recording.recordingUrl && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Audio Playback</label>
-                  <audio controls className="w-full">
-                    <source src={recording.recordingUrl} />
-                    Your browser does not support the audio element.
-                  </audio>
-                </div>
-              )}
+              <div className="space-y-4">
+                {recording.recordingUrl && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Audio Playback</label>
+                    <audio controls className="w-full">
+                      <source src={recording.recordingUrl} />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                )}
+                {/* Share + Copy controls */}
+                {hasSummary && (
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="share-summary" className="text-sm font-medium">
+                        Share summary with client
+                      </label>
+                      <Switch
+                        id="share-summary"
+                        checked={recording.summaryShared}
+                        onCheckedChange={handleToggleSharing}
+                        disabled={toggleSharing.isPending}
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyFullSummary}
+                    >
+                      {copiedSummary ? (
+                        <>
+                          <Check className="mr-2 h-3.5 w-3.5 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-3.5 w-3.5" />
+                          Copy Full Summary
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Summary */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>AI Summary</CardTitle>
-                  <CardDescription>
-                    Generated by Gemini 2.5 Flash
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="share-summary" className="text-sm font-medium">
-                    Share with client
-                  </label>
-                  <Switch
-                    id="share-summary"
-                    checked={recording.summaryShared}
-                    onCheckedChange={handleToggleSharing}
-                    disabled={toggleSharing.isPending}
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {recording.summaryText ? (
+          {/* Speaker Label Editor */}
+          {recording.transcriptText && (
+            <SpeakerLabelEditor
+              recordingId={id}
+              transcriptText={recording.transcriptText}
+              speakerLabels={speakerLabels}
+              onLabelsUpdated={handleLabelsUpdated}
+            />
+          )}
+
+          {/* AI Summary — structured or markdown fallback */}
+          {summaryJson ? (
+            <MeetingSummaryView
+              summary={summaryJson}
+              speakerLabels={speakerLabels}
+            />
+          ) : recording.summaryText ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">AI Summary</CardTitle>
+                <CardDescription>Generated by Gemini 2.5 Flash</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {recording.summaryText}
-                  </pre>
+                  </ReactMarkdown>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No summary available
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : null}
 
-          {/* Full Transcript */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Full Transcript</CardTitle>
-              <CardDescription>
-                Transcribed by Deepgram Nova-3 with speaker diarization
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recording.transcriptText ? (
-                <div className="rounded-lg border bg-muted/50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {recording.transcriptText}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No transcript available
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          {/* Full Transcript — collapsible */}
+          {recording.transcriptText && (
+            <Collapsible open={transcriptOpen} onOpenChange={setTranscriptOpen}>
+              <Card>
+                <CardHeader>
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex w-full items-center justify-between text-left">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          Full Transcript
+                        </CardTitle>
+                        <CardDescription>
+                          Transcribed by Deepgram Nova-3 with speaker diarisation
+                        </CardDescription>
+                      </div>
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                          transcriptOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="rounded-lg border bg-muted/50 p-4">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {recording.transcriptText}
+                      </p>
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
         </div>
       </main>
     </div>
