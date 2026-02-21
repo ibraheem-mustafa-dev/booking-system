@@ -41,7 +41,12 @@ export async function generateMeetingSummary(
   speakers: { speaker: number; text: string; start: number; end: number }[]
 ): Promise<MeetingSummary> {
   const client = getClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = client.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+    },
+  });
 
   // Format transcript with speaker labels and timestamps
   const formattedTranscript = speakers
@@ -92,13 +97,18 @@ ${formattedTranscript}`
 
   const text = result.response.text();
 
-  // Extract JSON from response (Gemini may wrap it in markdown code blocks)
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Could not extract JSON from Gemini response');
+  // With responseMimeType: 'application/json', Gemini returns valid JSON directly.
+  // Fall back to regex extraction if it wraps in markdown code blocks.
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Could not extract JSON from Gemini response');
+    }
+    parsed = JSON.parse(jsonMatch[0]);
   }
-
-  const parsed = JSON.parse(jsonMatch[0]);
 
   // Defensive parsing — handles both new structured format and old flat format
   return {
