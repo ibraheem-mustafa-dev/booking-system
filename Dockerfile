@@ -26,7 +26,9 @@ RUN npm ci
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build
+RUN echo "DEBUG: SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:0:30}..." && \
+    echo "DEBUG: ANON_KEY_LEN=$(echo -n $NEXT_PUBLIC_SUPABASE_ANON_KEY | wc -c) chars" && \
+    npm run build
 
 # --- Stage 2: Production ---
 FROM node:22-alpine AS runner
