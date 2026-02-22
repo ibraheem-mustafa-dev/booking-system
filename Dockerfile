@@ -16,15 +16,21 @@ ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_APP_NAME
 ARG NEXT_PUBLIC_SENTRY_DSN
 
+# Promote build ARGs to ENVs so process.env.* is available during next build.
+# NEXT_PUBLIC_* vars are inlined into the client JS bundle by the bundler AND
+# used by server code (tRPC context). Both mechanisms need the values visible.
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 
-# Create .env.production for Turbopack (.dockerignore excludes the host copy)
-RUN printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_ANON_KEY=%s\nNEXT_PUBLIC_APP_URL=%s\nNEXT_PUBLIC_APP_NAME=%s\nNEXT_PUBLIC_SENTRY_DSN=%s\n' \
-    "$NEXT_PUBLIC_SUPABASE_URL" "$NEXT_PUBLIC_SUPABASE_ANON_KEY" "$NEXT_PUBLIC_APP_URL" "$NEXT_PUBLIC_APP_NAME" "$NEXT_PUBLIC_SENTRY_DSN" \
-    > .env.production
-
+# Tell Next.js this is a production build so it loads .env.production
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build

@@ -6,12 +6,20 @@ import { meetingRecordings, bookings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { transcribeAudio } from '@/lib/ai/deepgram';
 import { generateMeetingSummary, formatSummary } from '@/lib/ai/gemini';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy singleton — avoid module-level env var access which crashes during
+// next build's page data collection (env vars aren't available at build time).
+let _supabaseAdmin: SupabaseClient | null = null;
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return _supabaseAdmin;
+}
 
 export const recordingsRouter = router({
   /**
@@ -68,7 +76,7 @@ export const recordingsRouter = router({
 
       // Upload to Supabase Storage
       const fileName = `${input.bookingId}/${Date.now()}-${input.audioFile.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await getSupabaseAdmin().storage
         .from('meeting-recordings')
         .upload(fileName, audioBuffer, {
           contentType: input.audioFile.type,
@@ -83,7 +91,7 @@ export const recordingsRouter = router({
       }
 
       // Get public URL
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = getSupabaseAdmin().storage
         .from('meeting-recordings')
         .getPublicUrl(uploadData.path);
 
@@ -316,7 +324,7 @@ export const recordingsRouter = router({
       if (recordingUrl) {
         const urlParts = recordingUrl.split('/meeting-recordings/');
         if (urlParts[1]) {
-          await supabase.storage
+          await getSupabaseAdmin().storage
             .from('meeting-recordings')
             .remove([urlParts[1]]);
         }
