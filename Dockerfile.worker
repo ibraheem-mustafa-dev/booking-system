@@ -1,0 +1,23 @@
+# =============================================================================
+# Dockerfile for BullMQ worker + database migrations
+# =============================================================================
+# Runs TypeScript source directly via tsx (needs full deps, not standalone).
+# Used by both the `worker` and `migrate` services in docker-compose.yml.
+# =============================================================================
+
+FROM node:22-alpine
+WORKDIR /app
+
+# Install deps (all — tsx is a devDependency)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy source and config
+COPY tsconfig.json ./
+COPY src/ ./src/
+COPY drizzle.config.ts ./
+COPY supabase/ ./supabase/
+
+ENV NODE_ENV=production
+
+CMD ["npx", "tsx", "src/worker.ts"]

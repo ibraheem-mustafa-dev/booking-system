@@ -1,0 +1,36 @@
+# Dependencies (reinstalled in container)
+node_modules
+
+# Build output (rebuilt in container)
+.next
+out
+dist
+
+# Environment files (secrets — NEVER copy into images)
+.env
+.env.local
+.env.production
+.env*.local
+
+# Version control
+.git
+.gitignore
+
+# Editor / OS
+.vscode
+.idea
+*.swp
+*.swo
+Thumbs.db
+
+# Large reference files (not needed in containers)
+reference/
+
+# Development scripts (not needed in containers)
+scripts/
+
+# Docker files (not needed inside container)
+Dockerfile
+Dockerfile.worker
+docker-compose.yml
+.dockerignore

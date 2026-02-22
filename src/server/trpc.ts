@@ -65,6 +65,34 @@ export async function createContext(): Promise<Context> {
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    const isDev = process.env.NODE_ENV === 'development';
+
+    // Intentionally-thrown TRPCErrors have no cause — pass them through
+    // (e.g. UNAUTHORIZED, FORBIDDEN, NOT_FOUND with safe messages we wrote)
+    if (!error.cause) {
+      return {
+        ...shape,
+        data: {
+          ...shape.data,
+          stack: isDev ? shape.data?.stack : undefined,
+        },
+      };
+    }
+
+    // Unexpected errors (Drizzle SQL, connection failures, etc.) have a cause.
+    // In production, replace the message to prevent leaking internals.
+    return {
+      ...shape,
+      message: isDev
+        ? shape.message
+        : 'An unexpected error occurred. Please try again.',
+      data: {
+        ...shape.data,
+        stack: isDev ? shape.data?.stack : undefined,
+      },
+    };
+  },
 });
 
 export const router = t.router;

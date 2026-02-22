@@ -65,7 +65,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000" # localhost only — reverse proxy handles public traffic
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/booking_system
@@ -86,9 +86,8 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.worker
     restart: unless-stopped
-    command: ["npx", "tsx", "src/worker.ts"]
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/booking_system
@@ -104,6 +103,22 @@ services:
       resources:
         limits:
           memory: 256M
+
+  # --- Database Migrations (run manually, not auto-started) ---
+  # Usage: docker compose --profile tools run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/booking_system
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+    command: ["npx", "drizzle-kit", "migrate"]
 
 volumes:
   postgres_data:
