@@ -7,7 +7,10 @@ import { users, organisations, orgMembers } from '@/lib/db/schema';
 import { generateUniqueSlug } from '@/lib/auth/utils';
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  // Use the configured app URL — request.nextUrl.origin returns the Docker
+  // internal URL (0.0.0.0:3000) behind the Nginx reverse proxy.
+  const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
   const code = searchParams.get('code');
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const errorParam = searchParams.get('error');

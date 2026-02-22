@@ -31,7 +31,9 @@ export async function updateSession(request: NextRequest) {
   // Protect dashboard routes
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard');
   if (isDashboard && !user) {
-    const loginUrl = new URL('/login', request.url);
+    // Use configured app URL — request.url returns Docker internal URL behind Nginx
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+    const loginUrl = new URL('/login', baseUrl);
     loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
