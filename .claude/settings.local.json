@@ -19,7 +19,25 @@
       "Bash(firecrawl search:*)",
       "Bash(firecrawl scrape:*)",
       "Skill(superpowers-chrome:browsing)",
-      "Skill(superpowers-chrome:browsing:*)"
+      "Skill(superpowers-chrome:browsing:*)",
+      "Bash(/c/Windows/System32/taskkill.exe //F //IM node.exe)",
+      "Bash(psql:*)",
+      "Bash(gh pr create:*)",
+      "mcp__plugin_github_github__create_pull_request",
+      "Bash(pip install:*)",
+      "Bash(python -m yt_dlp:*)",
+      "Skill(youtube-transcript)",
+      "Skill(youtube-transcript:*)",
+      "Skill(commit-commands:commit)",
+      "Skill(commit-commands:commit:*)",
+      "Bash(python -c:*)",
+      "mcp__plugin_playwright_playwright__browser_file_upload",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "Bash(gh pr view:*)",
+      "mcp__a11y-accessibility__test_accessibility",
+      "mcp__a11y-accessibility__check_color_contrast",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "Bash(ssh:*)"
     ]
   }
 }

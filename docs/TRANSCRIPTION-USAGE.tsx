@@ -31,33 +31,19 @@ export default function RecordingUploadExample({ bookingId }: { bookingId: strin
     setUploading(true);
 
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
+      // Upload directly to Supabase Storage, then pass path to tRPC
+      // (See recordings/page.tsx for full implementation with supabase client)
+      const storagePath = `${bookingId}/${Date.now()}-${file.name}`;
 
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
-        // Remove data URL prefix (e.g., "data:audio/wav;base64,")
-        const base64Audio = base64Data.split(',')[1];
+      // ... upload to supabase storage here ...
 
-        await createRecording.mutateAsync({
-          bookingId,
-          audioFile: {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            data: base64Audio,
-          },
-          recordedVia: 'phone_upload',
-        });
+      await createRecording.mutateAsync({
+        bookingId,
+        storagePath,
+        recordedVia: 'phone_upload',
+      });
 
-        setUploading(false);
-      };
-
-      reader.onerror = () => {
-        toast.error('Failed to read file');
-        setUploading(false);
-      };
+      setUploading(false);
     } catch (error) {
       console.error(error);
       setUploading(false);
