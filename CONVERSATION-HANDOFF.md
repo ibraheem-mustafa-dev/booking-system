@@ -1,104 +1,113 @@
-# Session Handoff — 21 February 2026 (Session 14)
+# Session Handoff — 22 February 2026 (Session 15)
 
 ## Completed This Session
 
-1. **Resumed from mid-test** — Session 13 ended mid-test of the transcription UI. Committed 2 uncommitted fixes (speaker label editor searching summaryText instead of raw transcript, plus check-db script and plan doc).
-2. **Gemini type narrowing fix** — `parsed` from Gemini JSON was `Record<string, unknown>`, causing TypeScript build failure. Fixed with explicit `typeof`/`Array.isArray` guards for all fields.
-3. **PR #1 merged to main** — 14 commits from `feature/ai-transcription` merged via `--no-ff`. Covers Steps 12-13 (invoices, AI transcription, recordings UI, summary overhaul, speaker labels). Pushed to remote.
-4. **Step 14: Full audit completed** — lint, accessibility, build, tests:
-   - **Lint:** 3 errors → 0 errors. 11 warnings → 1 (React Hook Form library compat, unfixable).
-   - **Fixes:** setState-in-effect (working-hours-editor → render-time sync pattern), Math.random (sidebar → deterministic width from index), unescaped apostrophe (recordings page), 11 unused imports removed across 9 files.
-   - **WCAG 2.2 AA:** Input touch targets fixed (shadcn Input h-9/36px → h-11/44px), global CSS expanded to cover input/select/textarea. Brand colour contrast verified: primary #0F7E80 = 4.86:1, accent #F87A1F = 4.5:1 (both pass AA).
-   - **Axe-core audit:** Login page 0 violations, 3 passes.
-   - **PDF template:** `@react-pdf/renderer` Image has no `alt` prop — eslint-disable added (false positive from jsx-a11y).
-5. **Transcription re-verified** — test-podcast.webm through Deepgram → Gemini: 85.2% word overlap, 2 speakers, 3.6s transcription, 8.9s summary. Structured JSON output with key points, facts, quotes, names, dates all correct.
-6. **All 41 tests pass**, production build succeeds (26 routes), 0 lint errors.
-
-## Completed Previous Sessions (Sessions 6-13)
-
-- **Sessions 6-7:** Steps 1-9 (scaffolding, schema, auth, booking types CRUD, working hours/overrides, Google Calendar OAuth, availability engine, public booking page).
-- **Session 8:** Steps 10-11 (email system + .ics calendar generation).
-- **Session 9:** Step 12 (invoices & receipts).
-- **Sessions 10-12:** Step 13 design, implementation, and Gemini migration.
-- **Session 13:** Recording summary UI overhaul (accordion key points, facts section, speaker labels, Gemini JSON mode), PR #1 opened.
+1. **tRPC error handler fixed** — added `errorFormatter` to `src/server/trpc.ts` that sanitises unexpected errors in production (replaces raw Drizzle SQL with generic "An unexpected error occurred" message). Intentionally-thrown TRPCErrors (UNAUTHORIZED, FORBIDDEN, etc.) pass through unchanged. Stack traces stripped in production.
+2. **Docker deployment preparation** — 7 files created/modified for VPS deployment:
+   - `.dockerignore` — excludes node_modules, .next, .env files, reference docs
+   - `Dockerfile` — removed unused deps stage, added 4GB heap limit, added build args + .env.production creation for Turbopack
+   - `Dockerfile.worker` — new separate Dockerfile for BullMQ worker (needs full source + tsx)
+   - `docker-compose.yml` — worker uses Dockerfile.worker, app bound to 127.0.0.1, added `migrate` service (profiles: tools)
+   - `package.json` — moved 3 Windows-specific packages to optionalDependencies
+3. **API routes marked force-dynamic** — `src/app/api/trpc/[trpc]/route.ts`, `src/app/api/auth/google/callback/route.ts`, `src/app/api/auth/google/connect/route.ts` all export `dynamic = 'force-dynamic'`
+4. **VPS setup started** — repo cloned to `/opt/booking-system`, `.env.production` created with production values (Supabase Cloud auth, new PostgreSQL password, new encryption key, AI API keys), Nginx config created at `/etc/nginx/sites-available/book.smallgiantsstudio.cloud`
+5. **Brand colour update script** — `scripts/update-brand-colours.ts` created (couldn't run locally due to DB connection issue, SQL provided for Supabase SQL Editor)
+6. **Worker Docker image built successfully** on VPS
 
 ## Current State
 
-- **Working:** Auth + Booking types CRUD + Working hours + Overrides + Google Calendar OAuth + Availability engine + Public booking + Email system + .ics generation + Invoices + AI transcription (Deepgram + Gemini) + Structured summary UI (accordion key points, facts/phrases, action items, decisions, URLs, speaker labels) + Recordings UI + Bookings list + New booking form + Dashboard stats + Settings page (read-only)
-- **Git:** Branch `main`, clean working tree. All work committed and pushed. `feature/ai-transcription` branch merged.
-- **DB:** 12 tables in Supabase Cloud (+ 2 new JSONB columns: `summaryJson`, `speakerLabels`). 2 bookings, 2 recordings.
-- **Tests:** 41 vitest tests pass. Production build passes (26 routes). 0 lint errors.
-- **Phase 1 MVP:** 14 of 15 steps complete. Only Step 15 (deploy to VPS) remains.
+- **Git:** Branch `main`, 6 commits pushed this session. Clean working tree except `.claude/settings.local.json`.
+- **Local:** All 41 tests pass, production build succeeds (26 routes), 0 lint errors.
+- **VPS (72.62.212.169):** Repo cloned at `/opt/booking-system`. `.env.production` exists. Nginx config created but not yet active (waiting for SSL). Worker image built. **App image build FAILS** — blocked on Turbopack issue.
+- **DNS:** `book.smallgiantsstudio.cloud` does NOT have a DNS A record yet. User needs to add `book → 72.62.212.169` in their DNS provider.
+- **Phase 1 MVP:** 14 of 15 steps complete. Step 15 (deploy) in progress but blocked.
 
 ## Known Issues / Blockers
 
-1. **Raw Drizzle errors leak to client** — tRPC error handler exposes SQL to frontend. Fix before deploy.
-2. **No rate limiting** on public REST endpoints (Phase 2/3 blocker for WP plugin, not MVP blocker).
-3. **Existing org DB row still has old brand colours** — need DB update or settings edit UI.
-4. **Accent colour contrast is borderline** — #F87A1F on white = exactly 4.5:1. Passes AA but any lighter variant fails. Avoid for body text on white.
-5. **React Hook Form `watch()` lint warning** — library incompatibility with React Compiler. Not fixable on our side.
+1. **BLOCKER: Docker app build fails during page data collection** — `Error: supabaseKey is required` at `/api/trpc/[trpc]`. Next.js 16 Turbopack evaluates server route modules during "Collecting page data" and `process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY` is undefined. Attempted fixes that DID NOT work:
+   - Docker ARG → ENV promotion (env var IS in shell, confirmed 208 chars)
+   - Creating `.env.production` inside builder via `printf` from ARGs
+   - `export const dynamic = 'force-dynamic'` on the route
+   - The env vars ARE available in the Docker shell (confirmed via debug echo), but Turbopack's page data collection worker doesn't see them. Root cause is likely how Turbopack handles `NEXT_PUBLIC_*` in server-side code during the page data collection step — it may use a sandboxed environment.
+2. **DNS record missing** — `book.smallgiantsstudio.cloud` has no A record. Existing subdomains (`n8n.`, `openclaw.`) point to `72.62.212.169`.
+3. **Brand colours not updated in DB** — existing org row still has old #1B6B6B/#E8B931. SQL ready to run in Supabase SQL Editor.
+4. **Accent colour contrast borderline** — #F87A1F on white = exactly 4.5:1 AA. Don't use for body text.
+5. **React Hook Form `watch()` lint warning** — library compat issue, unfixable.
 
 ## Next Priorities (in order)
 
-1. **Fix tRPC error handler** — stop raw Drizzle SQL from leaking to the frontend. Wrap in generic error messages for non-development environments.
-2. **Step 15: Deploy to VPS** — Docker Compose on Hostinger KVM 2 (8GB RAM). Dockerfile and docker-compose.yml already exist. Need `.env.production` configured, SSL/domain setup, and health check monitoring.
-3. **Update org DB row brand colours** — existing row has old #1B6B6B/#E8B931, should be #0F7E80/#F87A1F.
-4. **Research Deepgram diarisation improvements** — advanced settings for overlapping speech (`diarize_version`, `multichannel`, `endpointing`). Enhancement, not blocker.
-5. **Phase 2 planning** — Stripe Connect, cancellation/reschedule links, team members, round-robin booking.
+1. **Fix Docker app build** — the Turbopack page data collection issue. Try these approaches:
+   - Check if `next build` reads `.env.production` correctly (add `RUN cat .env.production` debug step to verify file contents)
+   - Try creating `.env.local` instead of `.env.production` (Next.js may prefer `.env.local` over `.env.production` during build)
+   - Try setting `NODE_ENV=production` before `npm run build` so Next.js loads `.env.production`
+   - Last resort: guard Supabase client creation in `createContext()` with env var check (`if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return { db, user: null, orgId: null }`)
+   - Nuclear option: skip `.dockerignore` exclusion for `.env.production` and pass a build-specific env file
+2. **Complete VPS deployment** — once Docker build works: start services, run migrations, set up SSL with certbot, verify health endpoint
+3. **Add DNS record** — user must add A record: `book.smallgiantsstudio.cloud → 72.62.212.169`
+4. **Update Supabase Auth redirect URLs** — in Supabase dashboard, set Site URL to `https://book.smallgiantsstudio.cloud` and add `/callback` to redirect URLs
+5. **Update brand colours in production DB** — run SQL in Supabase SQL Editor or via script on VPS after deploy
+6. **Research Deepgram diarisation** — `diarize_version`, `multichannel`, `endpointing` settings
+7. **Phase 2 planning** — Stripe Connect, cancellation/reschedule links, teams, round-robin
 
 ## Files Modified This Session
 
-**Modified (Step 14 audit fixes):**
-- `src/app/(dashboard)/dashboard/availability/_components/calendar-connections.tsx` — removed unused ExternalLink import
-- `src/app/(dashboard)/dashboard/availability/_components/working-hours-editor.tsx` — useEffect → render-time state sync, removed useEffect import
-- `src/app/(dashboard)/dashboard/booking-types/_components/booking-type-form.tsx` — removed unused Separator import
-- `src/app/(dashboard)/dashboard/recordings/page.tsx` — removed unused Mic import, fixed unescaped apostrophe
-- `src/app/globals.css` — added input/select/textarea to 44px touch target rule
-- `src/components/ui/input.tsx` — h-9 → h-11 (36px → 44px)
-- `src/components/ui/sidebar.tsx` — Math.random → deterministic width, added index prop
-- `src/lib/ai/claude.ts` — exported getClient function
-- `src/lib/ai/gemini.ts` — strict type narrowing for JSON response parsing
-- `src/lib/availability/engine.test.ts` — removed unused makeDate/makeTime helpers
-- `src/lib/email/templates/review-request.tsx` — removed unused Heading import
-- `src/lib/invoice/template.tsx` — eslint-disable for @react-pdf Image alt false positive
-- `src/server/routers/bookingTypes.ts` — removed unused randomBytes import
-- `src/server/routers/bookings.ts` — removed unused bookingTypes import
-- `src/server/trpc.ts` — removed unused users and organisations imports
-- `src/worker.ts` — removed unused generateIcsFile import
+**Created:**
+- `.dockerignore` — Docker build context exclusions
+- `Dockerfile.worker` — separate Dockerfile for BullMQ worker + migrations
+- `scripts/update-brand-colours.ts` — DB update script for org brand colours
 
-**Committed (Session 14, on main):**
-- `e6a10f0` — fix: speaker label editor searches summary text instead of raw transcript
-- `a1ae0ba` — fix: strict type narrowing for Gemini JSON response parsing
-- `a2f7571` — Merge feature/ai-transcription into main (14 commits)
-- `7e490f5` — fix: Step 14 audit — lint errors, unused imports, WCAG touch targets
+**Modified:**
+- `Dockerfile` — removed unused stage, added build args, .env.production creation, 4GB heap
+- `docker-compose.yml` — worker uses Dockerfile.worker, app bound to 127.0.0.1, added migrate service
+- `package.json` — Windows packages moved to optionalDependencies
+- `src/server/trpc.ts` — added errorFormatter to sanitise Drizzle SQL errors
+- `src/app/api/trpc/[trpc]/route.ts` — added `export const dynamic = 'force-dynamic'`
+- `src/app/api/auth/google/callback/route.ts` — added `export const dynamic = 'force-dynamic'`
+- `src/app/api/auth/google/connect/route.ts` — added `export const dynamic = 'force-dynamic'`
+
+**On VPS (not in git):**
+- `/opt/booking-system/.env.production` — production environment variables (chmod 600)
+- `/etc/nginx/sites-available/book.smallgiantsstudio.cloud` — Nginx reverse proxy config
+- `/etc/nginx/sites-enabled/book.smallgiantsstudio.cloud` — symlink to above
+
+**Commits this session (on main):**
+- `a39bef3` — feat: production deployment preparation — Docker fixes, tRPC error sanitisation
+- `dfae005` — fix: increase Node.js heap size for Docker build (4GB)
+- `7f7d16c` — fix: pass NEXT_PUBLIC env vars as build args for Docker
+- `822f161` — fix: promote Docker ARGs to ENVs for Next.js build workers
+- `5160844` — fix: mark API routes as force-dynamic for Docker builds
+- `0ae7911` — fix: create .env.production inside Docker builder for Turbopack
 
 ## Notes for Next Session
 
-- **AI module structure:** One file per provider — `claude.ts` (Anthropic, Sonnet 4.6, future reports), `deepgram.ts` (transcription, Nova-3), `gemini.ts` (Gemini 2.5 Flash, meeting summaries). All lazy-initialised.
+- **VPS access:** `ssh vps` (72.62.212.169, root, key at `~/.ssh/ibraheem-vps`)
+- **VPS has:** Docker Compose v5, Nginx, Certbot, git. Running n8n + Ollama + OpenClaw. 6.7GB RAM free, 30GB disk free.
+- **VPS domain pattern:** `*.smallgiantsstudio.cloud` — n8n and openclaw already configured
+- **Worker image:** already built on VPS, only the app image is blocked
+- **Nginx config:** created and tested (`nginx -t` passes), just needs `systemctl reload nginx` + certbot after DNS propagates
+- **PostgreSQL password:** `8b5de643e05b2aa5fab8afdf39668a993d9821be12b4221912bfb0c4c3df816d` (in `/opt/booking-system/.env.production`)
+- **TOKEN_ENCRYPTION_KEY:** new key generated for production (different from dev — production DB starts fresh)
+- **Production DB is fresh** — VPS PostgreSQL is empty. After migrations, first login will auto-create user + org via `/callback`. Dev data stays in Supabase Cloud.
+- **Migration command:** `docker compose --env-file .env.production --profile tools run --rm migrate`
+- **Start services:** `docker compose --env-file .env.production up -d`
+- **The `.env.local` hook** — Claude cannot edit `.env.local`. User must make manual changes to env files.
 - **Schema column names** — `startAt`/`endAt` (NOT `startTime`/`endTime`), `durationMins` (NOT `duration`), `priceAmount` (NOT `price`), `isActive` (NOT `active`).
-- **Brand colours** — `#0F7E80` primary, `#F87A1F` accent everywhere in source. Existing org DB row still has old colours.
-- **`.env.local` cannot be edited by Claude** — user hook blocks it. User must create `.env.production` manually.
-- **Docker setup already exists** — `Dockerfile` (Node 22 Alpine, standalone output) and `docker-compose.yml` (Next.js + PostgreSQL 16 + Redis 7). Estimated ~2.5GB RAM.
-- **VPS details** — Hostinger KVM 2, 8GB RAM, already running n8n via Docker Compose.
-- **Test script** — `npx tsx scripts/test-transcription.ts` for regression testing after any AI prompt changes.
-- **Paid session handling** — chargeable booking types should offer payment link and mention price in confirmation email. Note for Phase 2.
-- **yt-dlp installed** via pip (`python -m yt_dlp`). No ffmpeg on this machine — use webm format directly.
+- **RESEND_API_KEY is empty** in `.env.production` — email sending won't work until the user adds it.
+- **Docker build debug output** — the last Dockerfile has a `printf` RUN step that creates `.env.production` inside the builder. This can be verified/debugged by adding `RUN cat .env.production` before `npm run build`.
 
 ## Relevant Tooling for Next Tasks
 
 ### Commands
 - `/commit` — commit changes
 - `/handoff` — generate session handoff
-- `/deploy-check` — pre-deployment checklist (adapt for Next.js)
 
 ### Skills
+- `/superpowers:systematic-debugging` — debug the Docker build failure methodically
 - `/superpowers:verification-before-completion` — verify deployment works before claiming done
-- `/booking-dev` — guided feature development for booking system features
 
 ### Agents
-- `project-manager` — owns `~/.claude/projects.md`. Route to for status checks, deciding what to work on next
 - `test-and-explain` — test after deployment to verify production works
-- `booking-reviewer` — review tRPC error handler fix for multi-tenant security
+- `booking-reviewer` — review deployment config for multi-tenant security
 
 ### Hooks
 - `.env.local` cannot be edited by Claude — user hook blocks writes
@@ -108,15 +117,20 @@
 ~~~
 /superpowers:using-superpowers
 
-Booking system Phase 1 MVP: 14 of 15 steps COMPLETE. All code on `main`, fully merged, 0 lint errors, 41 tests pass, production build clean (26 routes). Step 14 (testing + audit) done this session. Only Step 15 (deploy to VPS) remains.
+Booking system Phase 1 MVP: 14 of 15 steps complete. Step 15 (deploy to VPS) is IN PROGRESS but BLOCKED by a Docker build failure. The worker image builds fine but the app image fails during Next.js 16 Turbopack's "Collecting page data" step with `Error: supabaseKey is required` at `/api/trpc/[trpc]`. The env vars are confirmed present in the Docker shell (208-char JWT verified) but Turbopack's page data collector doesn't see them.
 
 Read CONVERSATION-HANDOFF.md and CLAUDE.md for full context, then work through these priorities:
 
-1. **Fix tRPC error handler** — raw Drizzle SQL errors leak to the frontend in `src/server/trpc.ts`. Wrap errors in generic messages for production (keep detailed errors in dev). Quick fix before deploy.
-2. **Update org DB row brand colours** — existing row still has old #1B6B6B/#E8B931. Run a DB update to set #0F7E80/#F87A1F. Or build settings edit UI if time allows.
-3. **Step 15: Deploy to VPS** — Docker Compose on Hostinger KVM 2 (8GB RAM, already running n8n). `Dockerfile` and `docker-compose.yml` exist. User must create `.env.production` manually (Claude cannot edit env files). Steps: configure `.env.production`, build Docker image, push to VPS, verify health endpoint. Use `/superpowers:verification-before-completion` after deploy.
-4. **Research Deepgram diarisation** — investigate `diarize_version`, `multichannel`, `endpointing` settings for overlapping speech. Web search for best practices. Enhancement, not blocker.
-5. **Phase 2 planning** — Stripe Connect, cancellation/reschedule token links, team members, round-robin booking. Use `/superpowers:brainstorming` to plan.
+1. **Fix Docker app build** — use `/superpowers:systematic-debugging` to solve the Turbopack page data collection issue. The env vars ARE in the Docker shell but Turbopack can't see them. Approaches to try in order:
+   - Add `RUN cat .env.production` before `npm run build` to verify the file was created correctly by the `printf` step
+   - Try creating `.env.local` instead of `.env.production` (Next.js may not load `.env.production` during build without `NODE_ENV=production` set)
+   - Add `ENV NODE_ENV=production` BEFORE the `npm run build` step so Next.js knows to load `.env.production`
+   - Guard `createContext()` in `src/server/trpc.ts` with env var check: `if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return { db, user: null, orgId: null }`
+   - Check the full tRPC import chain for any module-level Supabase client creation
+2. **Complete VPS deployment** — once build works: `docker compose --env-file .env.production up -d`, run migrations (`docker compose --env-file .env.production --profile tools run --rm migrate`), set up SSL with `certbot --nginx -d book.smallgiantsstudio.cloud`. VPS is at `ssh vps` (72.62.212.169). Nginx config already created and tested.
+3. **DNS record needed** — user must add A record: `book.smallgiantsstudio.cloud → 72.62.212.169`. Existing subdomains already point there.
+4. **Update Supabase Auth URLs** — in Supabase dashboard (wimrjgrujprvwbsewqrq), set Site URL to `https://book.smallgiantsstudio.cloud`, add `/callback` to redirect URLs.
+5. **Verify deployment** — use `/superpowers:verification-before-completion` after deploy. Hit health endpoint, test login flow, delegate to `test-and-explain` agent.
 
-Critical context: Schema uses `startAt`/`endAt` and `durationMins` (NOT `startTime`/`endTime`/`duration`). `.env.local` cannot be edited by Claude. Docker Compose already runs on the VPS alongside n8n. Brand colours are #0F7E80/#F87A1F. Accent colour contrast is borderline AA (4.5:1) — don't use for body text on white.
+Critical context: VPS access is `ssh vps`. Worker image already built on VPS. Nginx config ready. `.env.production` exists on VPS at `/opt/booking-system/.env.production`. RESEND_API_KEY is empty (email won't work until added). Schema uses `startAt`/`endAt` and `durationMins`. `.env.local` cannot be edited by Claude. Brand colours are #0F7E80/#F87A1F (not yet updated in DB — SQL ready in scripts/update-brand-colours.ts).
 ~~~

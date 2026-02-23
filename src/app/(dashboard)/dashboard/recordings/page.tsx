@@ -103,37 +103,35 @@ export default function RecordingsPage() {
     setErrorMessage('');
 
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
+      // Upload file via dedicated endpoint (avoids tRPC body size limits)
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bookingId', selectedBookingId);
 
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
-        // Remove data URL prefix (e.g., "data:audio/wav;base64,")
-        const base64Audio = base64Data.split(',')[1];
+      const uploadRes = await fetch('/api/recordings/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-        setUploadState('transcribing');
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
+      }
 
-        await createRecording.mutateAsync({
-          bookingId: selectedBookingId,
-          audioFile: {
-            name: file.name,
-            type: file.type || 'audio/wav',
-            size: file.size,
-            data: base64Audio,
-          },
-          recordedVia: 'phone_upload',
-        });
-      };
+      const { storagePath } = await uploadRes.json();
 
-      reader.onerror = () => {
-        setUploadState('error');
-        setErrorMessage('Failed to read file');
-        toast.error('Failed to read file');
-      };
+      setUploadState('transcribing');
+
+      // Now call tRPC with just the storage path (small payload)
+      await createRecording.mutateAsync({
+        bookingId: selectedBookingId,
+        storagePath,
+        recordedVia: 'phone_upload',
+      });
     } catch (error) {
       console.error(error);
       setUploadState('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Upload failed');
     }
   };
 

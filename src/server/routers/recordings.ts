@@ -36,12 +36,7 @@ export const recordingsRouter = router({
     .input(
       z.object({
         bookingId: z.string().uuid(),
-        audioFile: z.object({
-          name: z.string(),
-          type: z.string(),
-          size: z.number(),
-          data: z.string(), // Base64-encoded audio data
-        }),
+        storagePath: z.string(), // Path in Supabase Storage (uploaded client-side)
         recordedVia: z.enum(['online', 'phone_upload', 'browser_mic']),
       })
     )
@@ -71,29 +66,24 @@ export const recordingsRouter = router({
         });
       }
 
-      // Decode base64 audio data
-      const audioBuffer = Buffer.from(input.audioFile.data, 'base64');
-
-      // Upload to Supabase Storage
-      const fileName = `${input.bookingId}/${Date.now()}-${input.audioFile.name}`;
-      const { data: uploadData, error: uploadError } = await getSupabaseAdmin().storage
+      // Download audio from Supabase Storage
+      const { data: fileData, error: downloadError } = await getSupabaseAdmin().storage
         .from('meeting-recordings')
-        .upload(fileName, audioBuffer, {
-          contentType: input.audioFile.type,
-          upsert: false,
-        });
+        .download(input.storagePath);
 
-      if (uploadError) {
+      if (downloadError || !fileData) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: `Failed to upload recording: ${uploadError.message}`,
+          message: `Failed to download recording: ${downloadError?.message ?? 'File not found'}`,
         });
       }
+
+      const audioBuffer = Buffer.from(await fileData.arrayBuffer());
 
       // Get public URL
       const { data: urlData } = getSupabaseAdmin().storage
         .from('meeting-recordings')
-        .getPublicUrl(uploadData.path);
+        .getPublicUrl(input.storagePath);
 
       const recordingUrl = urlData.publicUrl;
 
