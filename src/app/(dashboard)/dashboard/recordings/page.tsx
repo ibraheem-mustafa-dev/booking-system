@@ -113,12 +113,16 @@ export default function RecordingsPage() {
         body: formData,
       });
 
+      const uploadBody = await uploadRes.json().catch(() => null);
+
       if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(err.error || 'Upload failed');
+        throw new Error(uploadBody?.error || `Upload failed (HTTP ${uploadRes.status})`);
       }
 
-      const { storagePath } = await uploadRes.json();
+      const storagePath = uploadBody?.storagePath;
+      if (!storagePath) {
+        throw new Error('Upload succeeded but no storage path returned');
+      }
 
       setUploadState('transcribing');
 
