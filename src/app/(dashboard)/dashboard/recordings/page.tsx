@@ -103,25 +103,36 @@ export default function RecordingsPage() {
     setErrorMessage('');
 
     try {
-      // Upload file via dedicated endpoint (avoids tRPC body size limits)
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('bookingId', selectedBookingId);
-
-      const uploadRes = await fetch('/api/recordings/upload', {
+      // Step 1: Get signed upload URL from our server (tiny request)
+      const signedRes = await fetch('/api/recordings/upload', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: selectedBookingId,
+          fileName: file.name,
+          contentType: file.type || 'audio/wav',
+        }),
       });
 
-      const uploadBody = await uploadRes.json().catch(() => null);
+      const signedBody = await signedRes.json().catch(() => null);
 
-      if (!uploadRes.ok) {
-        throw new Error(uploadBody?.error || `Upload failed (HTTP ${uploadRes.status})`);
+      if (!signedRes.ok) {
+        throw new Error(signedBody?.error || `Failed to prepare upload (HTTP ${signedRes.status})`);
       }
 
-      const storagePath = uploadBody?.storagePath;
-      if (!storagePath) {
-        throw new Error('Upload succeeded but no storage path returned');
+      const { storagePath, signedUrl, token } = signedBody;
+
+      // Step 2: Upload file directly to Supabase Storage (bypasses our server entirely)
+      const directUploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'audio/wav',
+        },
+        body: file,
+      });
+
+      if (!directUploadRes.ok) {
+        throw new Error(`Direct upload failed (HTTP ${directUploadRes.status})`);
       }
 
       setUploadState('transcribing');
