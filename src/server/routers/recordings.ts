@@ -4,7 +4,7 @@ import { router, orgProcedure } from '../trpc';
 import { db } from '@/lib/db';
 import { meetingRecordings, bookings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { transcribeAudio } from '@/lib/ai/deepgram';
+import { transcribeFromUrl } from '@/lib/ai/deepgram';
 import { generateMeetingSummary, formatSummary } from '@/lib/ai/gemini';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -66,29 +66,16 @@ export const recordingsRouter = router({
         });
       }
 
-      // Download audio from Supabase Storage
-      const { data: fileData, error: downloadError } = await getSupabaseAdmin().storage
-        .from('meeting-recordings')
-        .download(input.storagePath);
-
-      if (downloadError || !fileData) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: `Failed to download recording: ${downloadError?.message ?? 'File not found'}`,
-        });
-      }
-
-      const audioBuffer = Buffer.from(await fileData.arrayBuffer());
-
-      // Get public URL
+      // Get public URL for the uploaded file
       const { data: urlData } = getSupabaseAdmin().storage
         .from('meeting-recordings')
         .getPublicUrl(input.storagePath);
 
       const recordingUrl = urlData.publicUrl;
 
-      // Transcribe with Deepgram
-      const transcription = await transcribeAudio(audioBuffer);
+      // Transcribe via URL — Deepgram fetches directly from Supabase.
+      // Our server never touches the audio bytes (critical for 512MB container).
+      const transcription = await transcribeFromUrl(recordingUrl);
 
       // Generate summary with Claude
       const summaryData = await generateMeetingSummary(
