@@ -12,6 +12,6 @@ export const config = {
     // - tRPC API (has its own auth middleware)
     // - Public booking pages (/book/...)
     // - Public REST API (/api/v1/book/... and /api/v1/health)
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/trpc|api/v1|book).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/trpc|api/v1|api/recordings/upload|book).*)',
   ],
 };
