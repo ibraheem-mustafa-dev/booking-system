@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Allow large file uploads (up to 100MB)
 export const runtime = 'nodejs';
 
 function getSupabaseAdmin() {
@@ -12,55 +11,40 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Direct file upload endpoint for meeting recordings.
- * Accepts multipart/form-data with:
- *   - file: the audio file
- *   - bookingId: UUID of the booking
+ * Generate a signed upload URL for direct browser-to-Supabase upload.
+ * The file never touches our server — avoids OOM on the 512MB container.
  *
- * Returns the storage path for use with tRPC recordings.create
+ * POST { bookingId, fileName, contentType }
+ * Returns { storagePath, signedUrl, token }
  */
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const file = formData.get('file') as File | null;
-    const bookingId = formData.get('bookingId') as string | null;
+    const { bookingId, fileName, contentType } = await req.json();
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    if (!bookingId || !fileName) {
+      return NextResponse.json({ error: 'bookingId and fileName required' }, { status: 400 });
     }
 
-    if (!bookingId) {
-      return NextResponse.json({ error: 'No bookingId provided' }, { status: 400 });
-    }
+    const storagePath = `${bookingId}/${Date.now()}-${fileName}`;
 
-    // Validate file size (100MB max)
-    if (file.size > 100 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large (max 100MB)' }, { status: 413 });
-    }
-
-    const storagePath = `${bookingId}/${Date.now()}-${file.name}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const { error: uploadError } = await getSupabaseAdmin().storage
+    const { data, error } = await getSupabaseAdmin().storage
       .from('meeting-recordings')
-      .upload(storagePath, buffer, {
-        contentType: file.type || 'audio/wav',
-        upsert: false,
-      });
+      .createSignedUploadUrl(storagePath);
 
-    if (uploadError) {
+    if (error || !data) {
       return NextResponse.json(
-        { error: `Upload failed: ${uploadError.message}` },
+        { error: `Failed to create upload URL: ${error?.message}` },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ storagePath });
+    return NextResponse.json({
+      storagePath,
+      signedUrl: data.signedUrl,
+      token: data.token,
+    });
   } catch (error) {
-    console.error('Recording upload error:', error);
-    return NextResponse.json(
-      { error: 'Upload failed' },
-      { status: 500 }
-    );
+    console.error('Signed URL generation error:', error);
+    return NextResponse.json({ error: 'Failed to generate upload URL' }, { status: 500 });
   }
 }
