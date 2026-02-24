@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
       .createSignedUploadUrl(storagePath);
 
     if (error || !data) {
+      console.error('Supabase signed URL error:', error);
       return NextResponse.json(
-        { error: `Failed to create upload URL: ${error?.message}` },
+        { error: `Failed to create upload URL: ${error?.message ?? 'Unknown error'}` },
         { status: 500 }
       );
     }
