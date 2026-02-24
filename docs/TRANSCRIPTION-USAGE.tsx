@@ -31,12 +31,22 @@ export default function RecordingUploadExample({ bookingId }: { bookingId: strin
     setUploading(true);
 
     try {
-      // Upload directly to Supabase Storage, then pass path to tRPC
-      // (See recordings/page.tsx for full implementation with supabase client)
-      const storagePath = `${bookingId}/${Date.now()}-${file.name}`;
+      // Step 1: Get signed upload URL from our server (tiny JSON request)
+      const signedRes = await fetch('/api/recordings/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId, fileName: file.name }),
+      });
+      const { storagePath, signedUrl } = await signedRes.json();
 
-      // ... upload to supabase storage here ...
+      // Step 2: Upload file directly to Supabase Storage (bypasses our server)
+      await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'audio/wav' },
+        body: file,
+      });
 
+      // Step 3: Tell server to transcribe (only sends the path string, not the file)
       await createRecording.mutateAsync({
         bookingId,
         storagePath,

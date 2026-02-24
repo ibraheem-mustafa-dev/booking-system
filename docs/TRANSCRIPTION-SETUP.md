@@ -40,35 +40,42 @@ Create a `meeting-recordings` bucket in Supabase:
 
 ## How It Works
 
-### Transcription Flow
+### Transcription Flow (Zero-Copy Architecture)
 
-1. User uploads audio file (via dashboard or browser recording)
-2. File uploaded to Supabase Storage (`meeting-recordings/[bookingId]/[timestamp]-[filename]`)
-3. Deepgram transcribes with settings:
+The app container has a 512MB RAM limit. Audio files can be up to 100MB. The server NEVER buffers audio bytes.
+
+1. User selects a booking and chooses an audio file in the dashboard
+2. Browser requests a signed upload URL from `/api/recordings/upload` (tiny JSON request)
+3. Browser uploads file **directly to Supabase Storage** using the signed URL (bypasses our server entirely)
+4. Browser calls `tRPC recordings.create` with just the `storagePath` string
+5. Server gets the public URL for the file and passes it to Deepgram's URL-based transcription API
+6. Deepgram fetches the audio **directly from Supabase** and transcribes with settings:
    - Model: `nova-3` (latest, 47.4% better accuracy)
    - `smart_format: true` (punctuation + formats dates/numbers/currency)
    - `diarize: true` (speaker identification: Speaker 0, Speaker 1, etc.)
    - `paragraphs: true` (split into paragraphs)
    - `utterances: true` (segment by speaker turns)
    - `language: en-GB` (UK English, with auto-detect fallback)
+7. Gemini generates summary (overall summary, key points, action items, decisions)
+8. Results stored in `meeting_recordings` table
 
-4. Claude Haiku generates summary:
-   - Overall summary (2-3 sentences)
-   - Key discussion points
-   - Action items (with who's responsible)
-   - Decisions made
-
-5. Results stored in `meeting_recordings` table
+**Why this architecture?** Previous attempts to pipe audio through the server (base64 in tRPC JSON, FormData upload) all failed because:
+- tRPC JSON body exceeds Next.js middleware 10MB limit and API route ~1MB default
+- FormData buffering triples memory usage (73MB file = ~220MB in memory), OOMing the 512MB container
+- URL-based transcription means zero audio bytes ever touch our server
 
 ### API Endpoints
 
-All endpoints under `trpc.recordings.*`:
+**Signed URL endpoint** (REST, not tRPC):
+- `POST /api/recordings/upload` — accepts `{ bookingId, fileName }`, returns `{ storagePath, signedUrl, token }`
 
-- `recordings.create` — Upload + transcribe + summarise
-- `recordings.getByBooking` — List all recordings for a booking
-- `recordings.getById` — Get single recording with full transcript
-- `recordings.toggleSummarySharing` — Control whether client sees summary
-- `recordings.delete` — Delete recording (removes from storage too)
+**tRPC endpoints** under `trpc.recordings.*`:
+- `recordings.create` — accepts `{ bookingId, storagePath, recordedVia }`, transcribes via URL + generates summary
+- `recordings.getByBooking` — list all recordings for a booking
+- `recordings.getById` — get single recording with full transcript
+- `recordings.toggleSummarySharing` — control whether client sees summary
+- `recordings.updateSpeakerLabels` — rename speakers (e.g. "Speaker 0" to "Sarah")
+- `recordings.delete` — delete recording (removes from storage too)
 
 ## Supported Audio Formats
 

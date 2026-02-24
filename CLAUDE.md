@@ -54,7 +54,7 @@ npx shadcn@latest add <component-name>   # Add new UI component
 - **Framer Motion** for React animations, CSS transitions for embed widget
 - **date-fns** for date manipulation
 - **Video integrations:** Google Meet + Zoom + Microsoft Teams (NOT Jitsi) — organiser chooses per booking type
-- **AI:** Deepgram API for transcription, Claude API (Haiku) for meeting summaries
+- **AI:** Deepgram API for transcription (URL-based, not buffer), Claude API (Haiku) for meeting summaries
 - **Hosting:** Existing Hostinger KVM 2 VPS (8GB RAM) via Docker Compose alongside N8N. No Docker available locally — use Supabase Cloud for dev
 
 ## Architecture
@@ -126,6 +126,35 @@ Override examples: "mosque event but can take calls" (type: available), "every F
 - Dashboard routes (`/dashboard/*`) redirect to `/login` if unauthenticated
 - Multi-tenant: user's primary organisation resolved in tRPC context via `orgMembers` table
 - RLS policies scoped to `org_id` for multi-tenant data isolation
+
+### Recording Upload & Transcription (Zero-Copy Architecture)
+
+**Critical constraint:** The app container has a 512MB RAM limit. Audio files can be up to 100MB. **The server must NEVER buffer audio bytes.**
+
+**Upload flow:**
+1. Browser requests a signed upload URL from `/api/recordings/upload` (tiny JSON request)
+2. Browser uploads file directly to Supabase Storage using the signed URL (server never sees the file)
+3. Browser calls `tRPC recordings.create` with only the `storagePath` string
+4. Server calls `transcribeFromUrl()` — Deepgram fetches audio directly from the Supabase public URL
+5. Server generates summary from the text transcript (Claude/Gemini), stores in DB
+
+**Key files:**
+- [src/app/api/recordings/upload/route.ts](src/app/api/recordings/upload/route.ts) — signed URL generator (NOT a file upload endpoint)
+- [src/lib/ai/deepgram.ts](src/lib/ai/deepgram.ts) — `transcribeFromUrl()` (URL-based) and `transcribeAudio()` (buffer-based, for small files only)
+- [src/server/routers/recordings.ts](src/server/routers/recordings.ts) — tRPC mutations/queries
+- [src/app/(dashboard)/dashboard/recordings/page.tsx](src/app/(dashboard)/dashboard/recordings/page.tsx) — upload UI
+
+**Why not tRPC for upload?** tRPC serialises everything as JSON. Base64-encoding a 73MB file creates ~100MB of JSON payload, which exceeds Next.js body limits (middleware: 10MB, API routes: ~1MB default) and OOMs the container.
+
+**Why not a FormData upload endpoint?** Even with `multipart/form-data`, the server must buffer the entire file in memory (`req.formData()` + `file.arrayBuffer()` + `Buffer.from()`), tripling memory usage (~220MB for a 73MB file). OOMs the 512MB container.
+
+**Why URL-based transcription?** Deepgram's `transcribeUrl()` accepts a public URL. Deepgram fetches the file directly from Supabase — our server only sends a URL string and receives text back. Zero audio bytes in our memory.
+
+**Nginx config requirements:**
+- `client_max_body_size 150M` (allows 100MB uploads with overhead)
+- `proxy_buffer_size 16k` + `proxy_buffers 4 16k` (Supabase auth cookies exceed default 4k/8k buffer)
+- `proxy_read_timeout 300s` + `proxy_send_timeout 300s` (large uploads need time)
+- Middleware matcher in `src/middleware.ts` must exclude `api/recordings/upload` (middleware has a 10MB body limit)
 
 ### Theming System
 - Per-organisation branding stored as JSONB on `organisations.branding` column
