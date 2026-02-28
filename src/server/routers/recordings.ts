@@ -66,14 +66,28 @@ export const recordingsRouter = router({
         });
       }
 
-      // Get public URL for the uploaded file
-      const { data: urlData } = getSupabaseAdmin().storage
+      // Determine public URL based on where the file was stored.
+      // Files <=50MB are in Supabase Storage; larger files are on VPS disk via nginx.
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+      let recordingUrl: string;
+
+      // Check if the file exists in Supabase Storage
+      const { data: supabaseFile } = await getSupabaseAdmin().storage
         .from('meeting-recordings')
-        .getPublicUrl(input.storagePath);
+        .createSignedUrl(input.storagePath, 60); // 60s just to check existence
 
-      const recordingUrl = urlData.publicUrl;
+      if (supabaseFile?.signedUrl) {
+        // File is in Supabase — use public URL
+        const { data: urlData } = getSupabaseAdmin().storage
+          .from('meeting-recordings')
+          .getPublicUrl(input.storagePath);
+        recordingUrl = urlData.publicUrl;
+      } else {
+        // File is on VPS disk — served by nginx
+        recordingUrl = `${appUrl}/recordings/files/${input.storagePath}`;
+      }
 
-      // Transcribe via URL — Deepgram fetches directly from Supabase.
+      // Transcribe via URL — Deepgram fetches directly.
       // Our server never touches the audio bytes (critical for 512MB container).
       const transcription = await transcribeFromUrl(recordingUrl);
 
