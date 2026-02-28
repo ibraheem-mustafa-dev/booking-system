@@ -3,6 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 
+/**
+ * Supabase Free tier: 50MB max per file.
+ * Files over this limit are uploaded directly to VPS disk via nginx WebDAV,
+ * served at /recordings/files/<path> for Deepgram to fetch.
+ */
+const SUPABASE_SIZE_LIMIT = 50 * 1024 * 1024;
+
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,15 +18,20 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Generate a signed upload URL for direct browser-to-Supabase upload.
- * The file never touches our server — avoids OOM on the 512MB container.
+ * POST { bookingId, fileName, fileSize }
  *
- * POST { bookingId, fileName, contentType }
- * Returns { storagePath, signedUrl, token }
+ * Returns:
+ *   For files <= 50MB:
+ *     { method: 'supabase', storagePath, signedUrl }
+ *   For files > 50MB:
+ *     { method: 'direct', storagePath, uploadUrl }
+ *
+ * In both cases, the browser uploads the file directly (never through tRPC).
+ * After upload, call tRPC recordings.create with the storagePath.
  */
 export async function POST(req: NextRequest) {
   try {
-    const { bookingId, fileName, contentType } = await req.json();
+    const { bookingId, fileName, fileSize } = await req.json();
 
     if (!bookingId || !fileName) {
       return NextResponse.json({ error: 'bookingId and fileName required' }, { status: 400 });
@@ -27,6 +39,17 @@ export async function POST(req: NextRequest) {
 
     const storagePath = `${bookingId}/${Date.now()}-${fileName}`;
 
+    if (fileSize && fileSize > SUPABASE_SIZE_LIMIT) {
+      // Large file: upload to VPS disk via nginx PUT, served at /recordings/files/
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+      return NextResponse.json({
+        method: 'direct',
+        storagePath,
+        uploadUrl: `${appUrl}/recordings/upload/${storagePath}`,
+      });
+    }
+
+    // Small file: Supabase signed URL
     const { data, error } = await getSupabaseAdmin().storage
       .from('meeting-recordings')
       .createSignedUploadUrl(storagePath);
@@ -40,12 +63,12 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
+      method: 'supabase',
       storagePath,
       signedUrl: data.signedUrl,
-      token: data.token,
     });
   } catch (error) {
-    console.error('Signed URL generation error:', error);
-    return NextResponse.json({ error: 'Failed to generate upload URL' }, { status: 500 });
+    console.error('Upload route error:', error);
+    return NextResponse.json({ error: 'Failed to prepare upload' }, { status: 500 });
   }
 }

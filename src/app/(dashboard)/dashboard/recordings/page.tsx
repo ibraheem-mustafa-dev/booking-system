@@ -103,36 +103,45 @@ export default function RecordingsPage() {
     setErrorMessage('');
 
     try {
-      // Step 1: Get signed upload URL from our server (tiny request)
-      const signedRes = await fetch('/api/recordings/upload', {
+      // Step 1: Get upload instructions from our server (tiny JSON request)
+      const prepRes = await fetch('/api/recordings/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: selectedBookingId,
           fileName: file.name,
-          contentType: file.type || 'audio/wav',
+          fileSize: file.size,
         }),
       });
 
-      const signedBody = await signedRes.json().catch(() => null);
+      const prepBody = await prepRes.json().catch(() => null);
 
-      if (!signedRes.ok) {
-        throw new Error(signedBody?.error || `Failed to prepare upload (HTTP ${signedRes.status})`);
+      if (!prepRes.ok) {
+        throw new Error(prepBody?.error || `Failed to prepare upload (HTTP ${prepRes.status})`);
       }
 
-      const { storagePath, signedUrl, token } = signedBody;
+      const { storagePath, method } = prepBody;
 
-      // Step 2: Upload file directly to Supabase Storage (bypasses our server entirely)
-      const directUploadRes = await fetch(signedUrl, {
+      // Step 2: Upload file directly (bypasses our Node.js server entirely)
+      let uploadUrl: string;
+      if (method === 'supabase') {
+        // Small files (<50MB): Supabase signed URL
+        uploadUrl = prepBody.signedUrl;
+      } else {
+        // Large files (>=50MB): nginx WebDAV on VPS disk
+        uploadUrl = prepBody.uploadUrl;
+      }
+
+      const directUploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'audio/wav',
-        },
+        headers: { 'Content-Type': file.type || 'audio/wav' },
         body: file,
       });
 
       if (!directUploadRes.ok) {
-        throw new Error(`Direct upload failed (HTTP ${directUploadRes.status})`);
+        const errBody = await directUploadRes.text().catch(() => '');
+        console.error('Upload error:', directUploadRes.status, errBody);
+        throw new Error(`Upload failed (HTTP ${directUploadRes.status}): ${errBody.slice(0, 200)}`);
       }
 
       setUploadState('transcribing');
