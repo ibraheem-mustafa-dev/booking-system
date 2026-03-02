@@ -246,8 +246,12 @@ export default function RecordingDetailPage({
                 {recording.recordingUrl && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Audio Playback</label>
-                    <audio controls className="w-full">
-                      <source src={recording.recordingUrl} />
+                    <audio
+                      controls
+                      className="w-full"
+                      src={recording.recordingUrl}
+                      preload="metadata"
+                    >
                       Your browser does not support the audio element.
                     </audio>
                   </div>
