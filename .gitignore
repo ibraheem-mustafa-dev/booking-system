@@ -44,3 +44,8 @@ yarn-error.log*
 next-env.d.ts
 .playwright-mcp/
 .firecrawl/
+
+# Handoff docs contain server references
+CONVERSATION-HANDOFF.md
+.env*
+!.env.example

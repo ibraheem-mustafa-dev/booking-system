@@ -10,7 +10,7 @@
    - `docker-compose.yml` — worker uses Dockerfile.worker, app bound to 127.0.0.1, added `migrate` service (profiles: tools)
    - `package.json` — moved 3 Windows-specific packages to optionalDependencies
 3. **API routes marked force-dynamic** — `src/app/api/trpc/[trpc]/route.ts`, `src/app/api/auth/google/callback/route.ts`, `src/app/api/auth/google/connect/route.ts` all export `dynamic = 'force-dynamic'`
-4. **VPS setup started** — repo cloned to `/opt/booking-system`, `.env.production` created with production values (Supabase Cloud auth, new PostgreSQL password, new encryption key, AI API keys), Nginx config created at `/etc/nginx/sites-available/book.smallgiantsstudio.cloud`
+4. **VPS setup started** — repo cloned to `/opt/booking-system`, `.env.production` created with production values [SEE .env.production on VPS], Nginx config created at `/etc/nginx/sites-available/book.smallgiantsstudio.cloud`
 5. **Brand colour update script** — `scripts/update-brand-colours.ts` created (couldn't run locally due to DB connection issue, SQL provided for Supabase SQL Editor)
 6. **Worker Docker image built successfully** on VPS
 
@@ -85,7 +85,7 @@
 - **VPS domain pattern:** `*.smallgiantsstudio.cloud` — n8n and openclaw already configured
 - **Worker image:** already built on VPS, only the app image is blocked
 - **Nginx config:** created and tested (`nginx -t` passes), just needs `systemctl reload nginx` + certbot after DNS propagates
-- **PostgreSQL password:** `***REMOVED***` (in `/opt/booking-system/.env.production`)
+- **PostgreSQL password:** [SEE .env.production on VPS at /opt/booking-system/]
 - **TOKEN_ENCRYPTION_KEY:** new key generated for production (different from dev — production DB starts fresh)
 - **Production DB is fresh** — VPS PostgreSQL is empty. After migrations, first login will auto-create user + org via `/callback`. Dev data stays in Supabase Cloud.
 - **Migration command:** `docker compose --env-file .env.production --profile tools run --rm migrate`
