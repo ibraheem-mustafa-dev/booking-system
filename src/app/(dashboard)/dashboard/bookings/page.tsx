@@ -109,8 +109,8 @@ export default function BookingsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild variant="ghost" size="sm">
-                            <Link href={`/dashboard/recordings?bookingId=${booking.id}`}>
-                              Add Recording
+                            <Link href={`/dashboard/bookings/${booking.id}`}>
+                              View
                             </Link>
                           </Button>
                         </TableCell>

@@ -38,6 +38,29 @@ export const bookingsRouter = router({
     }),
 
   /**
+   * Get a single booking with full detail
+   */
+  getById: orgProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, input.id))
+        .limit(1);
+
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+
+      if (booking.orgId !== ctx.orgId) {
+        throw new Error('Access denied');
+      }
+
+      return booking;
+    }),
+
+  /**
    * Create a booking from the dashboard
    */
   create: orgProcedure
