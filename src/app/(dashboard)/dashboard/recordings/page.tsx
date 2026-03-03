@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Mic,
+  ChevronRight,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
 import { toast } from 'sonner';
@@ -46,13 +48,14 @@ export default function RecordingsPage() {
       { enabled: true }
     );
 
+  const { data: allRecordings, isLoading: loadingRecordings, refetch: refetchRecordings } =
+    trpc.recordings.getAll.useQuery({ limit: 50, offset: 0 });
+
   const createRecording = trpc.recordings.create.useMutation({
     onSuccess: (data) => {
       setUploadState('success');
       toast.success('Recording transcribed successfully!');
-      console.log('Summary:', data.summaryText);
-
-      // Redirect to recording detail (we'll build this next)
+      void refetchRecordings();
       setTimeout(() => {
         router.push(`/dashboard/recordings/${data.id}`);
       }, 1500);
@@ -315,43 +318,70 @@ export default function RecordingsPage() {
             </CardContent>
           </Card>
 
-          {/* Info Card */}
+          {/* Past Recordings */}
           <Card>
             <CardHeader>
-              <CardTitle>How It Works</CardTitle>
+              <CardTitle>Past Recordings</CardTitle>
+              <CardDescription>
+                Click any recording to view its transcript and AI summary
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <FileAudio className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-medium">1. Upload Audio</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select a booking and upload your meeting recording
+            <CardContent>
+              {loadingRecordings ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading recordings...
+                </div>
+              ) : !allRecordings?.length ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <Mic className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">No recordings yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Upload your first meeting recording above
                   </p>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-medium">2. AI Processing</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Deepgram transcribes with speaker ID, Claude generates summary
-                  </p>
+              ) : (
+                <div className="divide-y">
+                  {allRecordings.map((rec) => (
+                    <button
+                      key={rec.id}
+                      type="button"
+                      onClick={() => router.push(`/dashboard/recordings/${rec.id}`)}
+                      className="flex w-full items-center gap-4 py-3 text-left hover:bg-muted/50 rounded-lg px-2 transition-colors"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <Mic className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-sm">{rec.clientName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(rec.bookingStart).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                          {' · '}
+                          Uploaded {new Date(rec.createdAt).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {rec.hasSummary && (
+                          <Badge variant="secondary" className="text-xs">
+                            Summary
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {rec.recordedVia.replace('_', ' ')}
+                        </Badge>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </button>
+                  ))}
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-medium">3. View Results</h3>
-                  <p className="text-sm text-muted-foreground">
-                    See transcript, speaker turns, key points, and action items
-                  </p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

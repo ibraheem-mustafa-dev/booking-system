@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { router, orgProcedure } from '../trpc';
 import { db } from '@/lib/db';
 import { meetingRecordings, bookings } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { transcribeFromUrl } from '@/lib/ai/deepgram';
 import { generateMeetingSummary, formatSummary } from '@/lib/ai/gemini';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -156,6 +156,41 @@ export const recordingsRouter = router({
         .orderBy(meetingRecordings.createdAt);
 
       return recordings;
+    }),
+
+  /**
+   * Get all recordings for the org (list view)
+   */
+  getAll: orgProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const rows = await db
+        .select({
+          id: meetingRecordings.id,
+          bookingId: meetingRecordings.bookingId,
+          createdAt: meetingRecordings.createdAt,
+          recordedVia: meetingRecordings.recordedVia,
+          summaryShared: meetingRecordings.summaryShared,
+          hasSummary: meetingRecordings.summaryText,
+          clientName: bookings.clientName,
+          bookingStart: bookings.startAt,
+        })
+        .from(meetingRecordings)
+        .innerJoin(bookings, eq(meetingRecordings.bookingId, bookings.id))
+        .where(eq(bookings.orgId, ctx.orgId))
+        .orderBy(desc(meetingRecordings.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return rows.map((r) => ({
+        ...r,
+        hasSummary: !!r.hasSummary,
+      }));
     }),
 
   /**
