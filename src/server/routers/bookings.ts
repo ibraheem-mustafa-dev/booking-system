@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { router, orgProcedure } from '../trpc';
 import { db } from '@/lib/db';
-import { bookings } from '@/lib/db/schema';
+import { bookings, bookingTypes, organisations } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { sendBookingEmails } from '@/lib/email/send-booking-emails';
 
 export const bookingsRouter = router({
   /**
@@ -97,6 +98,34 @@ export const bookingsRouter = router({
           rescheduleToken: crypto.randomUUID(),
         })
         .returning();
+
+      // Send confirmation + notification emails, schedule reminders
+      // Fire-and-forget — email failures must not crash the booking flow
+      void (async () => {
+        try {
+          const [org] = await db
+            .select({ slug: organisations.slug })
+            .from(organisations)
+            .where(eq(organisations.id, ctx.orgId))
+            .limit(1);
+
+          const [type] = await db
+            .select({ slug: bookingTypes.slug })
+            .from(bookingTypes)
+            .where(eq(bookingTypes.id, input.bookingTypeId))
+            .limit(1);
+
+          if (org && type) {
+            await sendBookingEmails({
+              bookingId: booking.id,
+              orgSlug: org.slug,
+              typeSlug: type.slug,
+            });
+          }
+        } catch (err) {
+          console.error('[bookings.create] Email sending failed:', err);
+        }
+      })();
 
       return booking;
     }),
