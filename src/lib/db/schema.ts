@@ -314,6 +314,7 @@ export const bookings = pgTable('bookings', {
   // Cancel/reschedule tokens for email links (unique, unguessable)
   cancellationToken: varchar('cancellation_token', { length: 64 }),
   rescheduleToken: varchar('reschedule_token', { length: 64 }),
+  googleCalendarEventId: text('google_calendar_event_id'),
   cancellationReason: text('cancellation_reason'),
   cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -373,9 +374,12 @@ export const meetingRecordings = pgTable('meeting_recordings', {
   summaryShared: boolean('summary_shared').default(false).notNull(),
   recordingUrl: text('recording_url'),
   recordedVia: recordedViaEnum('recorded_via').notNull(),
+  shareToken: varchar('share_token', { length: 64 }),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('meeting_recordings_booking_idx').on(table.bookingId),
+  uniqueIndex('meeting_recordings_share_token_idx').on(table.shareToken),
 ]);
 
 // =============================================================================
@@ -402,6 +406,7 @@ export const invoices = pgTable('invoices', {
   currency: varchar('currency', { length: 3 }).default('GBP').notNull(),
   paymentStatus: paymentStatusEnum('payment_status').default('pending').notNull(),
   paymentMethod: varchar('payment_method', { length: 64 }),
+  stripeCheckoutSessionId: text('stripe_checkout_session_id'),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   pdfUrl: text('pdf_url'),
   dueDate: date('due_date').notNull(),

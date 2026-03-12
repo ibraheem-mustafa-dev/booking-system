@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, gte } from 'drizzle-orm';
 import { router, orgProcedure } from '../trpc';
 import { bookingTypes, bookings } from '@/lib/db/schema';
 
@@ -228,7 +228,7 @@ export const bookingTypesRouter = router({
       return updated;
     }),
 
-  /** Delete a booking type (fails if it has existing bookings) */
+  /** Soft-delete a booking type (set isActive=false, guard against future bookings) */
   delete: orgProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -248,23 +248,100 @@ export const bookingTypesRouter = router({
         throw new Error('Booking type not found');
       }
 
-      // Check for existing bookings (ON DELETE RESTRICT prevents deletion)
-      const [bookingCount] = await ctx.db
+      // Warn if there are future confirmed bookings
+      const now = new Date();
+      const [futureCount] = await ctx.db
         .select({ total: count() })
         .from(bookings)
-        .where(eq(bookings.bookingTypeId, input.id));
+        .where(
+          and(
+            eq(bookings.bookingTypeId, input.id),
+            eq(bookings.status, 'confirmed'),
+            gte(bookings.startAt, now),
+          ),
+        );
 
-      if (bookingCount.total > 0) {
+      if (futureCount.total > 0) {
         throw new Error(
-          `Cannot delete this booking type — it has ${bookingCount.total} existing booking(s). Deactivate it instead.`,
+          `Cannot deactivate this booking type — it has ${futureCount.total} upcoming booking(s). Cancel them first.`,
         );
       }
 
       await ctx.db
-        .delete(bookingTypes)
+        .update(bookingTypes)
+        .set({ isActive: false, updatedAt: new Date() })
         .where(eq(bookingTypes.id, input.id));
 
       return { success: true };
+    }),
+
+  /** Duplicate a booking type (copies with 'Copy of [name]', new slug, inactive) */
+  duplicate: orgProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db
+        .select()
+        .from(bookingTypes)
+        .where(
+          and(
+            eq(bookingTypes.id, input.id),
+            eq(bookingTypes.orgId, ctx.orgId),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length === 0) {
+        throw new Error('Booking type not found');
+      }
+
+      const source = existing[0];
+      const newName = `Copy of ${source.name}`;
+      const baseSlug = slugify(newName);
+      let slug = baseSlug;
+      let suffix = 1;
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const collision = await ctx.db
+          .select({ id: bookingTypes.id })
+          .from(bookingTypes)
+          .where(
+            and(
+              eq(bookingTypes.orgId, ctx.orgId),
+              eq(bookingTypes.slug, slug),
+            ),
+          )
+          .limit(1);
+
+        if (collision.length === 0) break;
+        slug = `${baseSlug}-${suffix}`;
+        suffix++;
+      }
+
+      const [created] = await ctx.db
+        .insert(bookingTypes)
+        .values({
+          orgId: ctx.orgId,
+          name: newName,
+          slug,
+          description: source.description,
+          durationMins: source.durationMins,
+          bufferMins: source.bufferMins,
+          locationType: source.locationType,
+          locationDetails: source.locationDetails,
+          videoProvider: source.videoProvider,
+          colour: source.colour,
+          isActive: false,
+          maxAdvanceDays: source.maxAdvanceDays,
+          minNoticeHours: source.minNoticeHours,
+          customFields: source.customFields,
+          priceAmount: source.priceAmount,
+          priceCurrency: source.priceCurrency,
+          requiresPayment: source.requiresPayment,
+          emailSettings: source.emailSettings,
+        })
+        .returning();
+
+      return created;
     }),
 
   /** Toggle active/inactive status */

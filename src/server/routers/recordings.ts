@@ -91,13 +91,19 @@ export const recordingsRouter = router({
       // Our server never touches the audio bytes (critical for 512MB container).
       const transcription = await transcribeFromUrl(recordingUrl);
 
-      // Generate summary with Claude
-      const summaryData = await generateMeetingSummary(
-        transcription.transcript,
-        transcription.speakers
-      );
-
-      const summaryText = formatSummary(summaryData);
+      // Generate summary — fail gracefully so the transcript is always saved
+      // even if Gemini is unavailable (quota exhausted, region issue, etc.)
+      let summaryData = null;
+      let summaryText = null;
+      try {
+        summaryData = await generateMeetingSummary(
+          transcription.transcript,
+          transcription.speakers
+        );
+        summaryText = formatSummary(summaryData);
+      } catch (summaryErr) {
+        console.warn('[recordings] Summary generation failed (transcript saved without summary):', summaryErr);
+      }
 
       // Store in database (both formatted text and structured JSON)
       const [recording] = await db

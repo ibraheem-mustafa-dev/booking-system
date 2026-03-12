@@ -57,6 +57,7 @@ export default function RecordingDetailPage({
   const { id } = use(params);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [copiedTranscript, setCopiedTranscript] = useState(false);
 
   const { data: recording, isLoading } = trpc.recordings.getById.useQuery({ id });
 
@@ -106,6 +107,17 @@ export default function RecordingDetailPage({
       setCopiedSummary(true);
       toast.success('Full summary copied');
       setTimeout(() => setCopiedSummary(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const handleCopyTranscript = async () => {
+    try {
+      await navigator.clipboard.writeText(recording?.transcriptText ?? '');
+      setCopiedTranscript(true);
+      toast.success('Transcript copied');
+      setTimeout(() => setCopiedTranscript(false), 2000);
     } catch {
       toast.error('Failed to copy');
     }
@@ -330,24 +342,43 @@ export default function RecordingDetailPage({
             <Collapsible open={transcriptOpen} onOpenChange={setTranscriptOpen}>
               <Card>
                 <CardHeader>
-                  <CollapsibleTrigger asChild>
-                    <button type="button" className="flex w-full items-center justify-between text-left">
-                      <div>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          Full Transcript
-                        </CardTitle>
-                        <CardDescription>
-                          Transcribed by Deepgram Nova-3 with speaker diarisation
-                        </CardDescription>
-                      </div>
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-                          transcriptOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                  </CollapsibleTrigger>
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <CollapsibleTrigger asChild>
+                      <button type="button" className="flex flex-1 items-center justify-between text-left">
+                        <div>
+                          <CardTitle className="flex items-center gap-2 text-base">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            Full Transcript
+                          </CardTitle>
+                          <CardDescription>
+                            Transcribed by Deepgram Nova-3 with speaker diarisation
+                          </CardDescription>
+                        </div>
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                            transcriptOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                    </CollapsibleTrigger>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); handleCopyTranscript(); }}
+                    >
+                      {copiedTranscript ? (
+                        <>
+                          <Check className="mr-2 h-3.5 w-3.5 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-3.5 w-3.5" />
+                          Copy Transcript
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CollapsibleContent>
                   <CardContent>

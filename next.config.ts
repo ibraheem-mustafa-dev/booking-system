@@ -27,9 +27,35 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Headers for embedding (CORS for widget)
+  // Headers for embedding (CORS for widget + iframe)
   async headers() {
+    const iframeHeaders = [
+      {
+        key: 'Content-Security-Policy',
+        value: "frame-ancestors 'self' https://smallgiantsstudio.co.uk https://*.smallgiantsstudio.co.uk https://*.smallgiantsstudio.cloud",
+      },
+      { key: 'X-Frame-Options', value: 'ALLOWALL' },
+    ];
+
     return [
+      // Allow iframe embedding on public booking pages
+      {
+        source: '/book/:path*',
+        headers: iframeHeaders,
+      },
+      {
+        source: '/:typeSlug((?!dashboard|api|login|callback|_next).*)',
+        headers: iframeHeaders,
+      },
+      // Block iframe embedding on dashboard
+      {
+        source: '/dashboard/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+        ],
+      },
+      // API CORS
       {
         source: '/api/:path*',
         headers: [
@@ -38,6 +64,7 @@ const nextConfig: NextConfig = {
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],
       },
+      // Widget assets
       {
         source: '/widget/:path*',
         headers: [

@@ -169,6 +169,30 @@ export async function POST(
       endAt: bookings.endAt,
     });
 
+  // Create Google Calendar event (fire-and-forget, store eventId)
+  void (async () => {
+    try {
+      const { createBookingEvent } = await import('@/lib/calendar/google');
+      const eventId = await createBookingEvent({
+        bookingTypeName: type.name,
+        clientName: input.clientName,
+        clientEmail: input.clientEmail,
+        startAt: startDate,
+        endAt: endDate,
+        location: type.locationDetails,
+        notes: input.notes,
+      });
+      if (eventId) {
+        await db
+          .update(bookings)
+          .set({ googleCalendarEventId: eventId })
+          .where(eq(bookings.id, booking.id));
+      }
+    } catch (err) {
+      console.error('[booking] Google Calendar event creation failed:', err);
+    }
+  })();
+
   // Auto-create invoice for paid booking types
   if (type.requiresPayment && type.priceAmount) {
     try {

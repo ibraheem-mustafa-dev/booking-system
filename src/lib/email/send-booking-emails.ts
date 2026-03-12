@@ -229,11 +229,11 @@ export async function sendBookingEmails(
     });
 
     const rescheduleUrl = booking.rescheduleToken
-      ? `${APP_URL}/book/${ctx.orgSlug}/${ctx.typeSlug}/reschedule?token=${booking.rescheduleToken}`
+      ? `${APP_URL}/book/reschedule?token=${booking.rescheduleToken}`
       : undefined;
 
     const cancelUrl = booking.cancellationToken
-      ? `${APP_URL}/book/${ctx.orgSlug}/${ctx.typeSlug}/cancel?token=${booking.cancellationToken}`
+      ? `${APP_URL}/book/cancel?token=${booking.cancellationToken}`
       : undefined;
 
     const dashboardUrl = `${APP_URL}/dashboard/bookings`;

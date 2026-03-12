@@ -32,7 +32,7 @@ export function getAuthUrl(state: string): string {
   return client.generateAuthUrl({
     access_type: 'offline', // Needed for refresh token
     prompt: 'consent', // Forces consent screen — ensures we get refresh token
-    scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+    scope: ['https://www.googleapis.com/auth/calendar'],
     state, // CSRF protection — user ID or session token
   });
 }
@@ -226,4 +226,128 @@ export async function fetchBusyTimes(
   }
 
   return busySlots;
+}
+
+// ---------------------------------------------------------------------------
+// Server-side Booking Calendar (env-var based, no per-user OAuth)
+// ---------------------------------------------------------------------------
+
+const WORK_CALENDAR_ID = process.env.GOOGLE_WORK_CALENDAR_ID || 'primary';
+
+/**
+ * Create an OAuth2 client using server-level env vars (GOOGLE_REFRESH_TOKEN).
+ * Returns null if any required env var is missing.
+ */
+function createServerBookingCalendarClient() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    return null;
+  }
+
+  const client = new google.auth.OAuth2(clientId, clientSecret);
+  client.setCredentials({ refresh_token: refreshToken });
+  return client;
+}
+
+/**
+ * Create a Google Calendar event for a booking.
+ * Returns the event ID string, or null if calendar is not configured or fails.
+ * Never throws.
+ */
+export async function createBookingEvent(booking: {
+  bookingTypeName: string;
+  clientName: string;
+  clientEmail: string;
+  startAt: Date;
+  endAt: Date;
+  location?: string | null;
+  videoLink?: string | null;
+  notes?: string | null;
+}): Promise<string | null> {
+  try {
+    const client = createServerBookingCalendarClient();
+    if (!client) return null;
+
+    const calendar = google.calendar({ version: 'v3', auth: client });
+
+    const description = [
+      booking.notes,
+      booking.videoLink ? `Video link: ${booking.videoLink}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    const response = await calendar.events.insert({
+      calendarId: WORK_CALENDAR_ID,
+      requestBody: {
+        summary: `${booking.bookingTypeName} \u2014 ${booking.clientName}`,
+        description: description || undefined,
+        start: {
+          dateTime: booking.startAt.toISOString(),
+        },
+        end: {
+          dateTime: booking.endAt.toISOString(),
+        },
+        location: booking.location || undefined,
+        attendees: [{ email: booking.clientEmail }],
+      },
+    });
+
+    return response.data.id ?? null;
+  } catch (err) {
+    console.error('[google-calendar] Failed to create event:', err);
+    return null;
+  }
+}
+
+/**
+ * Update a Google Calendar event's times.
+ * Never throws.
+ */
+export async function updateBookingEvent(
+  googleEventId: string,
+  update: { startAt: Date; endAt: Date },
+): Promise<void> {
+  try {
+    const client = createServerBookingCalendarClient();
+    if (!client) return;
+
+    const calendar = google.calendar({ version: 'v3', auth: client });
+
+    await calendar.events.patch({
+      calendarId: WORK_CALENDAR_ID,
+      eventId: googleEventId,
+      requestBody: {
+        start: { dateTime: update.startAt.toISOString() },
+        end: { dateTime: update.endAt.toISOString() },
+      },
+    });
+  } catch (err) {
+    console.error('[google-calendar] Failed to update event:', err);
+  }
+}
+
+/**
+ * Delete a Google Calendar event.
+ * Never throws.
+ */
+export async function deleteBookingEvent(
+  googleEventId: string,
+): Promise<void> {
+  try {
+    const client = createServerBookingCalendarClient();
+    if (!client) return;
+
+    const calendar = google.calendar({ version: 'v3', auth: client });
+
+    await calendar.events.delete({
+      calendarId: WORK_CALENDAR_ID,
+      eventId: googleEventId,
+    });
+  } catch (err) {
+    console.error('[google-calendar] Failed to delete event:', err);
+  }
 }
