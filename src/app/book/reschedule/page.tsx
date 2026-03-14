@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,6 +70,21 @@ function isSameDay(a: Date, b: Date): boolean {
 // ---------------------------------------------------------------------------
 
 export default function RescheduleBookingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+        <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto size-8 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+          <p className="mt-4 text-sm text-gray-500">Loading...</p>
+        </div>
+      </div>
+    }>
+      <RescheduleBookingContent />
+    </Suspense>
+  );
+}
+
+function RescheduleBookingContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
