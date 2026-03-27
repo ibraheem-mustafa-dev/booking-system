@@ -1,136 +1,246 @@
-# Session Handoff — 22 February 2026 (Session 15)
+# Booking System — Session Handoff
 
-## Completed This Session
+**Generated:** 2026-03-15
+**Previous handoff:** 2026-02-22 (Session 15)
+**Project:** SGS Booking System (standalone Next.js SaaS)
+**Path:** `C:\Users\Bean\Projects\booking-system`
+**Git:** `main` branch, clean working tree
 
-1. **tRPC error handler fixed** — added `errorFormatter` to `src/server/trpc.ts` that sanitises unexpected errors in production (replaces raw Drizzle SQL with generic "An unexpected error occurred" message). Intentionally-thrown TRPCErrors (UNAUTHORIZED, FORBIDDEN, etc.) pass through unchanged. Stack traces stripped in production.
-2. **Docker deployment preparation** — 7 files created/modified for VPS deployment:
-   - `.dockerignore` — excludes node_modules, .next, .env files, reference docs
-   - `Dockerfile` — removed unused deps stage, added 4GB heap limit, added build args + .env.production creation for Turbopack
-   - `Dockerfile.worker` — new separate Dockerfile for BullMQ worker (needs full source + tsx)
-   - `docker-compose.yml` — worker uses Dockerfile.worker, app bound to 127.0.0.1, added `migrate` service (profiles: tools)
-   - `package.json` — moved 3 Windows-specific packages to optionalDependencies
-3. **API routes marked force-dynamic** — `src/app/api/trpc/[trpc]/route.ts`, `src/app/api/auth/google/callback/route.ts`, `src/app/api/auth/google/connect/route.ts` all export `dynamic = 'force-dynamic'`
-4. **VPS setup started** — repo cloned to `/opt/booking-system`, `.env.production` created with production values [SEE .env.production on VPS], Nginx config created at `/etc/nginx/sites-available/book.smallgiantsstudio.cloud`
-5. **Brand colour update script** — `scripts/update-brand-colours.ts` created (couldn't run locally due to DB connection issue, SQL provided for Supabase SQL Editor)
-6. **Worker Docker image built successfully** on VPS
+---
+
+## What Changed This Session (2026-03-14/15)
+
+1. **Suspense boundary fix** — `useSearchParams()` on `/book/cancel` and `/book/reschedule` wasn't wrapped in `<Suspense>`, causing the production build to fail. Fixed and pushed.
+2. **Design system established** — "Dark Confidence" aesthetic defined in CLAUDE.md. Orange-led (`#F87A1F`) dark premium dashboard, warm cream (`#FAF8F5`) public pages. ADHD-friendly UX principles (focus isolation, spring animations, high-contrast states). Full Design Context section added per `/teach-impeccable`.
+3. **Phase 2 plan updated** — Added design system reference section so all future sprints follow the aesthetic.
+4. **Product vision documented** — Future phases (onboarding wizards, AI chatbot with N8N+RAG, freemium model) captured in CLAUDE.md for context.
+5. **SGS booking plugin updated** — Design Context added to `small-giants-wp/plugins/sgs-booking/CLAUDE.md` and `small-giants-wp/specs/03-SGS-BOOKING.md` to align the WordPress extension with the design system.
+
+---
 
 ## Current State
 
-- **Git:** Branch `main`, 6 commits pushed this session. Clean working tree except `.claude/settings.local.json`.
-- **Local:** All 41 tests pass, production build succeeds (26 routes), 0 lint errors.
-- **VPS (72.62.212.169):** Repo cloned at `/opt/booking-system`. `.env.production` exists. Nginx config created but not yet active (waiting for SSL). Worker image built. **App image build FAILS** — blocked on Turbopack issue.
-- **DNS:** `book.smallgiantsstudio.cloud` does NOT have a DNS A record yet. User needs to add `book → 72.62.212.169` in their DNS provider.
-- **Phase 1 MVP:** 14 of 15 steps complete. Step 15 (deploy) in progress but blocked.
+### Phase 1 MVP — 90% complete
 
-## Known Issues / Blockers
+| Step | Status | Notes |
+|------|--------|-------|
+| 1-6 | Done | Scaffold, DB, auth, booking types, availability, Google Calendar |
+| 7 | Deferred | Microsoft Outlook OAuth (not blocking MVP) |
+| 8-13 | Done | Availability engine (23 tests), public booking, email, ICS, invoices, AI transcription |
+| 14 | TODO | Testing + Lighthouse + accessibility audit |
+| 15 | TODO | Deploy to VPS (Docker Compose on Hostinger KVM 2) — blocked by Turbopack issue from previous session |
 
-1. **BLOCKER: Docker app build fails during page data collection** — `Error: supabaseKey is required` at `/api/trpc/[trpc]`. Next.js 16 Turbopack evaluates server route modules during "Collecting page data" and `process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY` is undefined. Attempted fixes that DID NOT work:
-   - Docker ARG → ENV promotion (env var IS in shell, confirmed 208 chars)
-   - Creating `.env.production` inside builder via `printf` from ARGs
-   - `export const dynamic = 'force-dynamic'` on the route
-   - The env vars ARE available in the Docker shell (confirmed via debug echo), but Turbopack's page data collection worker doesn't see them. Root cause is likely how Turbopack handles `NEXT_PUBLIC_*` in server-side code during the page data collection step — it may use a sandboxed environment.
-2. **DNS record missing** — `book.smallgiantsstudio.cloud` has no A record. Existing subdomains (`n8n.`, `openclaw.`) point to `72.62.212.169`.
-3. **Brand colours not updated in DB** — existing org row still has old #1B6B6B/#E8B931. SQL ready to run in Supabase SQL Editor.
-4. **Accent colour contrast borderline** — #F87A1F on white = exactly 4.5:1 AA. Don't use for body text.
-5. **React Hook Form `watch()` lint warning** — library compat issue, unfixable.
+**Tests:** 41 vitest tests pass. Production build passes (26 routes).
+**Feature branch:** `feature/ai-transcription` still on remote but fully merged to main — can be deleted.
 
-## Next Priorities (in order)
+### Phase 2 — Planned, not started
 
-1. **Fix Docker app build** — the Turbopack page data collection issue. Try these approaches:
-   - Check if `next build` reads `.env.production` correctly (add `RUN cat .env.production` debug step to verify file contents)
-   - Try creating `.env.local` instead of `.env.production` (Next.js may prefer `.env.local` over `.env.production` during build)
-   - Try setting `NODE_ENV=production` before `npm run build` so Next.js loads `.env.production`
-   - Last resort: guard Supabase client creation in `createContext()` with env var check (`if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return { db, user: null, orgId: null }`)
-   - Nuclear option: skip `.dockerignore` exclusion for `.env.production` and pass a build-specific env file
-2. **Complete VPS deployment** — once Docker build works: start services, run migrations, set up SSL with certbot, verify health endpoint
-3. **Add DNS record** — user must add A record: `book.smallgiantsstudio.cloud → 72.62.212.169`
-4. **Update Supabase Auth redirect URLs** — in Supabase dashboard, set Site URL to `https://book.smallgiantsstudio.cloud` and add `/callback` to redirect URLs
-5. **Update brand colours in production DB** — run SQL in Supabase SQL Editor or via script on VPS after deploy
-6. **Research Deepgram diarisation** — `diarize_version`, `multichannel`, `endpointing` settings
-7. **Phase 2 planning** — Stripe Connect, cancellation/reschedule links, teams, round-robin
+Full plan at `docs/plans/2026-03-10-phase-2-plan.md`. 7 sprints. Now includes design system constraints section.
 
-## Files Modified This Session
+---
 
-**Created:**
-- `.dockerignore` — Docker build context exclusions
-- `Dockerfile.worker` — separate Dockerfile for BullMQ worker + migrations
-- `scripts/update-brand-colours.ts` — DB update script for org brand colours
+## Design System — "Dark Confidence"
 
-**Modified:**
-- `Dockerfile` — removed unused stage, added build args, .env.production creation, 4GB heap
-- `docker-compose.yml` — worker uses Dockerfile.worker, app bound to 127.0.0.1, added migrate service
-- `package.json` — Windows packages moved to optionalDependencies
-- `src/server/trpc.ts` — added errorFormatter to sanitise Drizzle SQL errors
-- `src/app/api/trpc/[trpc]/route.ts` — added `export const dynamic = 'force-dynamic'`
-- `src/app/api/auth/google/callback/route.ts` — added `export const dynamic = 'force-dynamic'`
-- `src/app/api/auth/google/connect/route.ts` — added `export const dynamic = 'force-dynamic'`
+Full spec in `CLAUDE.md` under "Design Context" and "Design System" sections. Summary:
 
-**On VPS (not in git):**
-- `/opt/booking-system/.env.production` — production environment variables (chmod 600)
-- `/etc/nginx/sites-available/book.smallgiantsstudio.cloud` — Nginx reverse proxy config
-- `/etc/nginx/sites-enabled/book.smallgiantsstudio.cloud` — symlink to above
+| Surface | Background | Primary CTA | Secondary |
+|---------|-----------|-------------|-----------|
+| Dashboard | `#0C0C0F` (near-black) | `#F87A1F` (orange) | `#0F7E80` (teal) |
+| Public booking | `#FAF8F5` (warm cream) | `#F87A1F` (orange) | `#0F7E80` (teal) |
 
-**Commits this session (on main):**
-- `a39bef3` — feat: production deployment preparation — Docker fixes, tRPC error sanitisation
-- `dfae005` — fix: increase Node.js heap size for Docker build (4GB)
-- `7f7d16c` — fix: pass NEXT_PUBLIC env vars as build args for Docker
-- `822f161` — fix: promote Docker ARGs to ENVs for Next.js build workers
-- `5160844` — fix: mark API routes as force-dynamic for Docker builds
-- `0ae7911` — fix: create .env.production inside Docker builder for Turbopack
+**Typography:** Inter 700 headings, JetBrains Mono for data/numbers, Inter body. Both via `next/font/google`.
 
-## Notes for Next Session
+**ADHD-Friendly UX:** Focus isolation (hovered element brightens, siblings dim to ~60%), spring animations (`cubic-bezier(0.34, 1.56, 0.64, 1)`), pulsing orange dot loading, bento grid stats.
 
-- **VPS access:** `ssh vps` (72.62.212.169, root, key at `~/.ssh/ibraheem-vps`)
-- **VPS has:** Docker Compose v5, Nginx, Certbot, git. Running n8n + Ollama + OpenClaw. 6.7GB RAM free, 30GB disk free.
-- **VPS domain pattern:** `*.smallgiantsstudio.cloud` — n8n and openclaw already configured
-- **Worker image:** already built on VPS, only the app image is blocked
-- **Nginx config:** created and tested (`nginx -t` passes), just needs `systemctl reload nginx` + certbot after DNS propagates
-- **PostgreSQL password:** [SEE .env.production on VPS at /opt/booking-system/]
-- **TOKEN_ENCRYPTION_KEY:** new key generated for production (different from dev — production DB starts fresh)
-- **Production DB is fresh** — VPS PostgreSQL is empty. After migrations, first login will auto-create user + org via `/callback`. Dev data stays in Supabase Cloud.
-- **Migration command:** `docker compose --env-file .env.production --profile tools run --rm migrate`
-- **Start services:** `docker compose --env-file .env.production up -d`
-- **The `.env.local` hook** — Claude cannot edit `.env.local`. User must make manual changes to env files.
-- **Schema column names** — `startAt`/`endAt` (NOT `startTime`/`endTime`), `durationMins` (NOT `duration`), `priceAmount` (NOT `price`), `isActive` (NOT `active`).
-- **RESEND_API_KEY is empty** in `.env.production` — email sending won't work until the user adds it.
-- **Docker build debug output** — the last Dockerfile has a `printf` RUN step that creates `.env.production` inside the builder. This can be verified/debugged by adding `RUN cat .env.production` before `npm run build`.
+**Anti-patterns:** No serif headings, no spinning circles, no grey-on-white cards, no `ease-in-out`, no uniform grids.
 
-## Relevant Tooling for Next Tasks
+**Product vision:**
+- Phase A: Visual redesign (design system defined, applied during Phase 2)
+- Phase B: Onboarding (wizards, tutorials, tooltips)
+- Phase C: AI chatbot (N8N + RAG, natural language recipe matching, booking automation)
+- Phase D: Freemium model (paid extras: chatbot, analytics)
+- Phase E: SGS WordPress booking block (thin API client, spec at `small-giants-wp/specs/03-SGS-BOOKING.md`)
 
-### Commands
-- `/commit` — commit changes
-- `/handoff` — generate session handoff
+---
 
-### Skills
-- `/superpowers:systematic-debugging` — debug the Docker build failure methodically
-- `/superpowers:verification-before-completion` — verify deployment works before claiming done
+## Key Files
 
-### Agents
-- `test-and-explain` — test after deployment to verify production works
-- `booking-reviewer` — review deployment config for multi-tenant security
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Project DNA — design context, design system, coding standards, product vision |
+| `docs/plans/2026-03-10-phase-2-plan.md` | Phase 2 implementation plan (7 sprints, design system section added) |
+| `src/app/globals.css` | CSS tokens, brand variables, WCAG touch targets — needs design system overhaul |
+| `src/app/(dashboard)/dashboard/page.tsx` | Dashboard — needs bento grid, dark theme, orange stats |
+| `src/app/(dashboard)/sidebar.tsx` | Sidebar — needs dark theme, gradient header |
+| `src/app/book/[slug]/[typeSlug]/booking-flow.tsx` | Public booking flow (793 lines) — needs cream/pill/floating label redesign |
+| `src/app/(auth)/login/page.tsx` | Login — needs dark split layout |
+| `src/app/layout.tsx` | Root layout — needs JetBrains Mono font loader |
 
-### Hooks
-- `.env.local` cannot be edited by Claude — user hook blocks writes
+---
+
+## Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| Framework | Next.js 16, React 19 |
+| Language | TypeScript (strict, zero `any`) |
+| Styling | Tailwind CSS v4, shadcn/ui |
+| Database | Supabase (PostgreSQL), Drizzle ORM |
+| API | tRPC v11 (dashboard), REST (public booking) |
+| Auth | Supabase Auth (magic link) |
+| Email | Resend + React Email, BullMQ worker |
+| Payments | Stripe (Payment Intents, planned) |
+| AI | Deepgram Nova-3 (transcription), Gemini 2.5 Flash (summaries) |
+| Calendar | Google Calendar OAuth |
+| Deployment | Docker Compose on Hostinger KVM 2 VPS |
+
+---
+
+## Skills to Invoke
+
+Always start with `/superpowers:using-superpowers`.
+
+### Process Skills (invoke first)
+| Skill | When |
+|-------|------|
+| `/superpowers:brainstorming` | Before any new feature or visual work |
+| `/superpowers:writing-plans` | Before multi-step implementations |
+| `/superpowers:systematic-debugging` | Any bug, test failure, or unexpected behaviour |
+| `/superpowers:verification-before-completion` | Before claiming anything is done |
+| `/superpowers:test-driven-development` | Before writing implementation code |
+| `/superpowers:executing-plans` | When executing a written plan with checkpoints |
+| `/superpowers:dispatching-parallel-agents` | When 2+ independent tasks can run in parallel |
+| `/superpowers:finishing-a-development-branch` | When ready to merge — guides merge/PR/cleanup |
+
+### Domain Skills (invoke at point of use)
+| Skill | When |
+|-------|------|
+| `/frontend-design` | Building new UI components — avoids generic AI aesthetics |
+| `/ui-ux-pro-max` | Choosing styles, palettes, font pairings (50 styles, 21 palettes) |
+| `/tailwind-design-system` | Design tokens, Tailwind v4 component patterns |
+| `/vercel-react-best-practices` | React/Next.js performance optimisation |
+| `/software-architecture` | Architectural decisions, Clean Architecture, SOLID |
+| `/animate` | Micro-interactions, spring animations, motion design |
+| `/bolder` | If design feels too safe/boring — amplify visual impact |
+| `/colorize` | If sections feel too monochromatic |
+| `/polish` | Final quality pass — alignment, spacing, consistency |
+| `/adapt` | Responsive design across breakpoints |
+| `/interaction-design` | Hover/focus/loading states, transitions |
+| `/teach-impeccable` | If design context needs updating |
+| `/claude-api` | When working with Anthropic SDK imports |
+| `/deploy-nextjs` | Pre-deployment checklist |
+
+### Review Skills (invoke after implementation)
+| Skill | When |
+|-------|------|
+| `/superpowers:requesting-code-review` | After completing a feature |
+| `/superpowers:receiving-code-review` | When getting feedback — verify before implementing |
+| `/review` | General code review for best practices |
+| `/simplify` | Review changed code for reuse and efficiency |
+
+---
+
+## Agents to Use
+
+| Agent | When | What it does |
+|-------|------|-------------|
+| `test-and-explain` | After any feature or fix | Runs tests, explains results in plain English |
+| `design-reviewer` | After visual changes | Checks WCAG 2.2 AA, design system consistency, responsive behaviour, compares against mockups |
+| `performance-auditor` | After visual changes or before deploy | Lighthouse, Core Web Vitals, bundle size |
+| `code-simplifier` | After completing a feature | Refines code for clarity and maintainability |
+| `feature-dev:code-architect` | For complex features | Designs architecture, maps component hierarchy |
+| `feature-dev:code-explorer` | For understanding existing patterns | Traces execution paths, maps dependencies |
+| `feature-dev:code-reviewer` | For high-priority code review | Confidence-based filtering, only reports real issues |
+
+---
+
+## MCP Servers & Tools
+
+| Server | Use for |
+|--------|---------|
+| `firecrawl` | **All web research** — replaces WebFetch/WebSearch. Design inspiration, competitor analysis, library docs, best practices |
+| `context7` | Up-to-date docs for Next.js, React 19, Tailwind v4, shadcn/ui, Drizzle, tRPC, Supabase |
+| `github` | PRs, issues, code search, branch management, release creation |
+| `playwright` | Visual testing — screenshots at 375/768/1440px breakpoints, accessibility audits with axe-core, console error checks, form testing |
+| `supabase` | Database operations if MCP connected |
+| `ICD-10 Codes` | Not relevant to this project |
+
+### CLI Tools
+| Tool | Use for |
+|------|---------|
+| `gh` | GitHub CLI — PRs, issues, run checks, API queries |
+| `npx vitest run` | Run test suite (41 tests) |
+| `npm run build` | Production build verification |
+| `npx tsc --noEmit` | TypeScript type checking |
+
+---
+
+## Research Approach for Design Work
+
+1. **Search competitors:** `firecrawl search "dark SaaS dashboard design 2026"`, `"booking UI criticism reddit"`
+2. **Fetch library docs:** Context7 for shadcn/ui APIs, Tailwind v4 theme config, next/font
+3. **Scan codebase:** `Grep` for `--brand-`, `bg-`, `oklch`, `text-muted` to find all colour/style usage
+4. **Test at breakpoints:** Playwright screenshots at 375px (mobile), 768px (tablet), 1440px (desktop)
+5. **Check accessibility:** Playwright axe-core audit, WCAG 2.2 AA contrast checks on orange (#F87A1F) — borderline 4.5:1 on white, safe for large text and buttons only
+
+---
+
+## Known Issues / Risks
+
+1. **Docker build blocker** — Turbopack page data collection fails with `supabaseKey is required`. Env vars confirmed present but Turbopack's worker doesn't see them. See previous handoff for attempted fixes.
+2. **Google Calendar tokens lost** — `gog auth add` needs re-running before calendar integration works
+3. **Stripe webhook secret not set** — needs configuring on VPS after Sprint 6
+4. **RESEND_API_KEY empty** — email sending won't work until added to `.env.production` on VPS
+5. **ioredis warning** — build shows "Package ioredis can't be external" (non-blocking)
+6. **Feature branch cleanup** — `feature/ai-transcription` on remote, fully merged — safe to delete
+7. **Orange contrast** — `#F87A1F` on white is exactly 4.5:1 AA. Safe for buttons/large text, not for body text.
+
+---
+
+## What to Work on Next
+
+**Priority order:**
+1. **Step 14:** Testing + Lighthouse + accessibility audit → `test-and-explain` agent
+2. **Step 15:** Fix Docker build blocker, deploy to VPS → `/superpowers:systematic-debugging`, `/deploy-nextjs`
+3. **Phase 2 Sprint 1:** Domain + infrastructure (DNS, SSL, nginx)
+4. **Design system application:** Apply "Dark Confidence" during Phase 2 UI sprints — don't redesign before deploying
+
+**Do NOT:**
+- Redesign before deploying — get the current version live first, iterate visually during Phase 2
+- Build the SGS booking WordPress plugin until missing API endpoints exist
+- Use serif heading fonts, spinning circles, grey-on-white cards, or `ease-in-out` transitions
+
+---
 
 ## Next Session Prompt
 
-~~~
+```
 /superpowers:using-superpowers
 
-Booking system Phase 1 MVP: 14 of 15 steps complete. Step 15 (deploy to VPS) is IN PROGRESS but BLOCKED by a Docker build failure. The worker image builds fine but the app image fails during Next.js 16 Turbopack's "Collecting page data" step with `Error: supabaseKey is required` at `/api/trpc/[trpc]`. The env vars are confirmed present in the Docker shell (208-char JWT verified) but Turbopack's page data collector doesn't see them.
+Continue work on the SGS Booking System at C:\Users\Bean\Projects\booking-system
 
-Read CONVERSATION-HANDOFF.md and CLAUDE.md for full context, then work through these priorities:
+Read CONVERSATION-HANDOFF.md and CLAUDE.md for full context — they contain the design system ("Dark Confidence"), product vision, known issues, and priority order.
 
-1. **Fix Docker app build** — use `/superpowers:systematic-debugging` to solve the Turbopack page data collection issue. The env vars ARE in the Docker shell but Turbopack can't see them. Approaches to try in order:
-   - Add `RUN cat .env.production` before `npm run build` to verify the file was created correctly by the `printf` step
-   - Try creating `.env.local` instead of `.env.production` (Next.js may not load `.env.production` during build without `NODE_ENV=production` set)
-   - Add `ENV NODE_ENV=production` BEFORE the `npm run build` step so Next.js knows to load `.env.production`
-   - Guard `createContext()` in `src/server/trpc.ts` with env var check: `if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return { db, user: null, orgId: null }`
-   - Check the full tRPC import chain for any module-level Supabase client creation
-2. **Complete VPS deployment** — once build works: `docker compose --env-file .env.production up -d`, run migrations (`docker compose --env-file .env.production --profile tools run --rm migrate`), set up SSL with `certbot --nginx -d book.smallgiantsstudio.cloud`. VPS is at `ssh vps` (72.62.212.169). Nginx config already created and tested.
-3. **DNS record needed** — user must add A record: `book.smallgiantsstudio.cloud → 72.62.212.169`. Existing subdomains already point there.
-4. **Update Supabase Auth URLs** — in Supabase dashboard (wimrjgrujprvwbsewqrq), set Site URL to `https://book.smallgiantsstudio.cloud`, add `/callback` to redirect URLs.
-5. **Verify deployment** — use `/superpowers:verification-before-completion` after deploy. Hit health endpoint, test login flow, delegate to `test-and-explain` agent.
+Current state: Phase 1 MVP at 90%. 41 tests pass, build passes. Steps 14 (testing audit) and 15 (deploy to VPS) remain.
 
-Critical context: VPS access is `ssh vps`. Worker image already built on VPS. Nginx config ready. `.env.production` exists on VPS at `/opt/booking-system/.env.production`. RESEND_API_KEY is empty (email won't work until added). Schema uses `startAt`/`endAt` and `durationMins`. `.env.local` cannot be edited by Claude. Brand colours are #0F7E80/#F87A1F (not yet updated in DB — SQL ready in scripts/update-brand-colours.ts).
-~~~
+Key skills to invoke at the right moments:
+- /superpowers:systematic-debugging — for the Docker build blocker (Turbopack env var issue)
+- /superpowers:verification-before-completion — before claiming deploy works
+- /deploy-nextjs — pre-deployment checklist
+- /frontend-design + /ui-ux-pro-max — when applying the design system in Phase 2
+- /animate + /interaction-design — for spring animations and focus isolation states
+- /tailwind-design-system — for design token implementation in globals.css
+
+Key agents:
+- test-and-explain — after Step 14
+- design-reviewer — after any visual changes
+- performance-auditor — before/after deploy
+
+MCP tools:
+- firecrawl — all web research (replaces WebFetch/WebSearch)
+- context7 — library docs (Next.js 16, Tailwind v4, shadcn/ui, Drizzle, tRPC)
+- playwright — visual testing at breakpoints, accessibility audits
+- github — PR management
+
+VPS: ssh vps (72.62.212.169). Docker Compose at /opt/booking-system. Nginx config ready. SSL pending DNS.
+```
