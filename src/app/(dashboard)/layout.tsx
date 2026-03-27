@@ -54,16 +54,18 @@ export default async function DashboardLayout({
   const org = membershipResult.length > 0 ? membershipResult[0] : null;
 
   return (
-    <SidebarProvider>
-      <DashboardSidebar
-        user={{
-          name: user.name || user.email,
-          email: user.email,
-          avatarUrl: user.avatarUrl,
-        }}
-        orgName={org?.orgName || 'No organisation'}
-      />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+    <div className="dark">
+      <SidebarProvider>
+        <DashboardSidebar
+          user={{
+            name: user.name || user.email,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+          }}
+          orgName={org?.orgName || 'No organisation'}
+        />
+        <SidebarInset>{children}</SidebarInset>
+      </SidebarProvider>
+    </div>
   );
 }

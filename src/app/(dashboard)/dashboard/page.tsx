@@ -18,16 +18,8 @@ import {
   invoices,
 } from '@/lib/db/schema';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 
 export const metadata = {
   title: 'Dashboard',
@@ -41,21 +33,28 @@ function formatCurrency(pence: number): string {
   }).format(pounds);
 }
 
-function StatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'confirmed':
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Confirmed</Badge>;
-    case 'cancelled':
-      return <Badge variant="destructive">Cancelled</Badge>;
-    case 'completed':
-      return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Completed</Badge>;
-    case 'no_show':
-      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">No show</Badge>;
-    case 'pending':
-      return <Badge variant="secondary">Pending</Badge>;
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
-  }
+function StatusDot({ status }: { status: string }) {
+  const colours: Record<string, string> = {
+    confirmed:  'bg-green-500',
+    cancelled:  'bg-red-500',
+    completed:  'bg-blue-500',
+    no_show:    'bg-amber-500',
+    pending:    'bg-zinc-500',
+  };
+  const labels: Record<string, string> = {
+    confirmed: 'Confirmed',
+    cancelled: 'Cancelled',
+    completed: 'Completed',
+    no_show:   'No show',
+    pending:   'Pending',
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <span className={`size-2 rounded-full ${colours[status] ?? 'bg-zinc-500'}`} aria-hidden="true" />
+      {labels[status] ?? status}
+    </span>
+  );
 }
 
 export default async function DashboardPage() {
@@ -64,11 +63,8 @@ export default async function DashboardPage() {
     data: { user: supabaseUser },
   } = await supabase.auth.getUser();
 
-  if (!supabaseUser) {
-    return null; // Layout handles redirect
-  }
+  if (!supabaseUser) return null;
 
-  // Fetch user name
   const appUser = await db
     .select({ name: users.name, email: users.email })
     .from(users)
@@ -77,7 +73,6 @@ export default async function DashboardPage() {
 
   const displayName = appUser[0]?.name || appUser[0]?.email || 'there';
 
-  // Check membership
   const membership = await db
     .select({ orgId: orgMembers.orgId })
     .from(orgMembers)
@@ -182,178 +177,204 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <header className="flex h-14 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-4" />
-        <h1 className="text-sm font-medium">Dashboard</h1>
+      {/* ── Top bar ── */}
+      <header className="flex h-14 items-center gap-2 border-b border-border/50 px-4">
+        <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
+        <Separator orientation="vertical" className="h-4 bg-border/50" />
+        <h1 className="text-sm font-medium text-muted-foreground">Dashboard</h1>
       </header>
 
       <div className="p-6 md:p-8">
-        <div className="mx-auto max-w-5xl space-y-6">
+        <div className="mx-auto max-w-5xl space-y-8">
+
+          {/* ── Page heading ── */}
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
               Welcome back, {displayName}
             </h2>
-            <p className="text-muted-foreground">
-              Here&apos;s an overview of your booking system.
+            <p className="mt-1 text-sm text-muted-foreground">
+              Here&apos;s what&apos;s happening with your bookings.
             </p>
           </div>
 
+          {/* ── Onboarding prompt ── */}
           {!hasBookingTypes && (
-            <Card className="border-dashed border-2">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-(--brand-primary)">
-                    <CalendarPlus className="size-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle>Get started</CardTitle>
-                    <CardDescription>
-                      Create your first booking type to start accepting
-                      appointments.
-                    </CardDescription>
-                  </div>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary">
+                  <CalendarPlus className="size-5 text-white" aria-hidden="true" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <Button asChild>
-                  <Link href="/dashboard/booking-types/new">
-                    Create booking type
-                    <ArrowRight className="ml-2 size-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground">Get started</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Create your first booking type to start accepting appointments.
+                  </p>
+                  <Button asChild size="sm" className="mt-4">
+                    <Link href="/dashboard/booking-types/new">
+                      Create booking type
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* Stat cards */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Upcoming (7 days)</CardDescription>
-                <Calendar className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{upcomingCount}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>This month</CardDescription>
-                <TrendingUp className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{thisMonthCount}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Monthly revenue</CardDescription>
-                <PoundSterling className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{formatCurrency(thisMonthRevenue)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Outstanding invoices</CardDescription>
-                <FileText className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{outstandingInvoicesCount}</p>
-                {outstandingInvoicesTotal > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {formatCurrency(outstandingInvoicesTotal)} owed
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+          {/* ── Bento stat grid ── */}
+          <div className="spotlight-group grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Hero stat — upcoming (larger) */}
+            <div className="hover-lift rounded-xl border border-border bg-card p-5 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 lg:col-span-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Upcoming (7 days)
+                </p>
+                <Calendar className="size-4 text-primary" aria-hidden="true" />
+              </div>
+              <p className="mt-3 font-mono text-4xl font-bold tabular text-foreground">
+                {upcomingCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">confirmed bookings</p>
+            </div>
+
+            <div className="hover-lift rounded-xl border border-border bg-card p-5 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  This month
+                </p>
+                <TrendingUp className="size-4 text-muted-foreground" aria-hidden="true" />
+              </div>
+              <p className="mt-3 font-mono text-3xl font-bold tabular text-foreground">
+                {thisMonthCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">total bookings</p>
+            </div>
+
+            <div className="hover-lift rounded-xl border border-border bg-card p-5 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Monthly revenue
+                </p>
+                <PoundSterling className="size-4 text-muted-foreground" aria-hidden="true" />
+              </div>
+              <p className="mt-3 font-mono text-3xl font-bold tabular text-foreground">
+                {formatCurrency(thisMonthRevenue)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">from paid invoices</p>
+            </div>
+
+            <div className="hover-lift rounded-xl border border-border bg-card p-5 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Outstanding
+                </p>
+                <FileText className="size-4 text-muted-foreground" aria-hidden="true" />
+              </div>
+              <p className="mt-3 font-mono text-3xl font-bold tabular text-foreground">
+                {outstandingInvoicesCount}
+              </p>
+              <p className="mt-1 font-mono text-xs tabular text-muted-foreground">
+                {outstandingInvoicesTotal > 0
+                  ? `${formatCurrency(outstandingInvoicesTotal)} owed`
+                  : 'no outstanding invoices'}
+              </p>
+            </div>
           </div>
 
-          {/* Recent bookings + quick actions */}
+          {/* ── Recent bookings + quick actions ── */}
           <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Recent bookings</CardTitle>
-                <Button asChild variant="ghost" size="sm">
+
+            {/* Recent bookings — row cards, not HTML table */}
+            <div className="rounded-xl border border-border bg-card lg:col-span-2">
+              <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
+                <h3 className="text-sm font-semibold text-foreground">Recent bookings</h3>
+                <Button asChild variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground">
                   <Link href="/dashboard/bookings">
                     View all
-                    <ArrowRight className="ml-1 size-3" />
+                    <ArrowRight className="size-3" />
                   </Link>
                 </Button>
-              </CardHeader>
-              <CardContent>
-                {recentBookings.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    No bookings yet.
-                  </p>
-                ) : (
-                  <div className="rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-2 text-left font-medium">Client</th>
-                          <th className="px-4 py-2 text-left font-medium">Type</th>
-                          <th className="hidden px-4 py-2 text-left font-medium sm:table-cell">Date/Time</th>
-                          <th className="px-4 py-2 text-right font-medium">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentBookings.map((b) => (
-                          <tr key={b.id} className="border-b last:border-b-0">
-                            <td className="px-4 py-2">{b.clientName}</td>
-                            <td className="px-4 py-2 text-muted-foreground">{b.bookingTypeName}</td>
-                            <td className="hidden px-4 py-2 text-muted-foreground sm:table-cell">
-                              {b.startAt.toLocaleDateString('en-GB', {
-                                day: '2-digit',
-                                month: 'short',
-                              })}{' '}
-                              {b.startAt.toLocaleTimeString('en-GB', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              <StatusBadge status={b.status} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Quick actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild className="w-full justify-start" variant="outline">
+              {recentBookings.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <p className="text-sm text-muted-foreground">No bookings yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/40">
+                  {recentBookings.map((b) => (
+                    <Link
+                      key={b.id}
+                      href={`/dashboard/bookings/${b.id}`}
+                      className={`flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/30 ${getStatusStripeClass(b.status)}`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {b.clientName}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {b.bookingTypeName}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-mono text-xs tabular text-muted-foreground">
+                          {b.startAt.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                          })}{' '}
+                          {b.startAt.toLocaleTimeString('en-GB', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                        <StatusDot status={b.status} />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick actions */}
+            <div className="rounded-xl border border-border bg-card">
+              <div className="border-b border-border/50 px-5 py-4">
+                <h3 className="text-sm font-semibold text-foreground">Quick actions</h3>
+              </div>
+              <div className="space-y-2 p-4">
+                <Button asChild className="w-full justify-start" variant="ghost" size="sm">
                   <Link href="/dashboard/booking-types/new">
-                    <CalendarPlus className="mr-2 size-4" />
+                    <CalendarPlus className="size-4 text-primary" />
                     New booking type
                   </Link>
                 </Button>
-                <Button asChild className="w-full justify-start" variant="outline">
+                <Button asChild className="w-full justify-start" variant="ghost" size="sm">
                   <Link href="/dashboard/bookings">
-                    <Calendar className="mr-2 size-4" />
+                    <Calendar className="size-4 text-primary" />
                     View all bookings
                   </Link>
                 </Button>
-                <Button asChild className="w-full justify-start" variant="outline">
+                <Button asChild className="w-full justify-start" variant="ghost" size="sm">
                   <Link href="/dashboard/invoices">
-                    <FileText className="mr-2 size-4" />
+                    <FileText className="size-4 text-primary" />
                     View invoices
                   </Link>
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
     </>
   );
+}
+
+function getStatusStripeClass(status: string): string {
+  const map: Record<string, string> = {
+    confirmed: 'status-confirmed',
+    cancelled:  'status-cancelled',
+    completed:  'status-completed',
+    no_show:    'status-no-show',
+    pending:    'status-pending',
+  };
+  return map[status] ?? 'status-pending';
 }

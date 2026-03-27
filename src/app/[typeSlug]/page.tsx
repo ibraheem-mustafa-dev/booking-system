@@ -69,7 +69,7 @@ export default async function ShortBookingPage({ params }: ShortBookingPageProps
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen bg-noise"
       style={{
         ...cssVars,
         backgroundColor: 'var(--brand-background)',
@@ -77,28 +77,45 @@ export default async function ShortBookingPage({ params }: ShortBookingPageProps
         fontFamily: 'var(--brand-font)',
       } as React.CSSProperties}
     >
-      <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
+      <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>
+        <div className="mb-10 text-center">
+          <p className="mb-1 text-xs font-medium uppercase tracking-widest opacity-50">
             {org.name}
-          </h1>
-          <h2
-            className="mt-2 text-lg font-medium"
-            style={{ color: 'var(--brand-primary)' }}
-          >
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>
             {type.name}
-          </h2>
+          </h1>
           {type.description && (
-            <p className="mt-2 text-sm opacity-70">{type.description}</p>
+            <p className="mt-3 text-sm leading-relaxed opacity-60">{type.description}</p>
           )}
-          <div className="mt-3 flex items-center justify-center gap-4 text-sm opacity-60">
-            <span>{type.durationMins} minutes</span>
-            {type.locationType === 'online' && <span>Online meeting</span>}
-            {type.locationType === 'in_person' && <span>In person</span>}
-            {type.locationType === 'phone' && <span>Phone call</span>}
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <span
+              className="inline-flex items-center rounded-full border px-3 py-1 font-mono text-xs font-medium"
+              style={{ borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}
+            >
+              {type.durationMins} min
+            </span>
+            {type.locationType === 'online' && (
+              <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium opacity-60">
+                Online meeting
+              </span>
+            )}
+            {type.locationType === 'in_person' && (
+              <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium opacity-60">
+                In person
+              </span>
+            )}
+            {type.locationType === 'phone' && (
+              <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium opacity-60">
+                Phone call
+              </span>
+            )}
             {type.requiresPayment && type.priceAmount && (
-              <span>
+              <span
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                style={{ backgroundColor: 'var(--brand-primary)', color: '#fff' }}
+              >
                 {type.priceCurrency} {type.priceAmount}
               </span>
             )}

@@ -9,7 +9,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-jetbrains-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -46,106 +46,279 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Spring animation — cubic-bezier(0.34, 1.56, 0.64, 1) mimics a spring overshoot */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Pulsing dots loading animation */
+  @keyframes pulse-dot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Spring enter/exit */
+  @keyframes spring-in {
+    from { opacity: 0; transform: translateY(4px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes spring-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(4px) scale(0.97); }
+  }
+
+  /* Spotlight lift — used on interactive cards */
+  @keyframes lift-in {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-2px); }
+  }
 }
 
+/* ─────────────────────────────────────────────
+   LIGHT THEME — Public booking pages (cream)
+   ───────────────────────────────────────────── */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+
+  /* Surfaces */
+  --background: oklch(0.98 0.005 74);   /* #FAF8F5 warm cream */
+  --foreground: oklch(0.11 0.012 264);  /* near-black */
+  --card: oklch(1 0 0);                 /* white cards */
+  --card-foreground: oklch(0.11 0.012 264);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.11 0.012 264);
+
+  /* Orange primary CTA — #F87A1F */
+  --primary: oklch(0.70 0.19 45);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Teal secondary / info — #0F7E80 */
+  --secondary: oklch(0.55 0.10 195);
+  --secondary-foreground: oklch(1 0 0);
+
+  /* Muted / subdued surfaces */
+  --muted: oklch(0.95 0.004 74);
+  --muted-foreground: oklch(0.50 0.012 264);
+
+  /* Accent (teal) */
+  --accent: oklch(0.55 0.10 195);
+  --accent-foreground: oklch(1 0 0);
+
+  /* Semantic */
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.88 0.008 74);
+  --input: oklch(0.88 0.008 74);
+  --ring: oklch(0.70 0.19 45);  /* orange focus ring */
+
+  /* Charts */
+  --chart-1: oklch(0.70 0.19 45);   /* orange */
+  --chart-2: oklch(0.55 0.10 195);  /* teal */
+  --chart-3: oklch(0.65 0.15 142);  /* green */
+  --chart-4: oklch(0.65 0.15 280);  /* purple */
+  --chart-5: oklch(0.65 0.20 27);   /* red */
+
+  /* Sidebar (light) */
+  --sidebar: oklch(0.97 0.004 74);
+  --sidebar-foreground: oklch(0.11 0.012 264);
+  --sidebar-primary: oklch(0.70 0.19 45);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.006 74);
+  --sidebar-accent-foreground: oklch(0.11 0.012 264);
+  --sidebar-border: oklch(0.88 0.008 74);
+  --sidebar-ring: oklch(0.70 0.19 45);
 }
 
+/* ─────────────────────────────────────────────
+   DARK THEME — Dashboard (near-black, premium)
+   Applied by wrapping in class="dark"
+   ───────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  /* Surfaces */
+  --background: oklch(0.085 0.004 264);  /* #0C0C0F */
+  --foreground: oklch(0.97 0.005 264);
+  --card: oklch(0.127 0.005 264);        /* #18181B */
+  --card-foreground: oklch(0.97 0.005 264);
+  --popover: oklch(0.15 0.005 264);
+  --popover-foreground: oklch(0.97 0.005 264);
+
+  /* Orange primary CTA — same across both themes */
+  --primary: oklch(0.70 0.19 45);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Dark secondary surface */
+  --secondary: oklch(0.20 0.005 264);
+  --secondary-foreground: oklch(0.97 0.005 264);
+
+  /* Muted */
+  --muted: oklch(0.20 0.005 264);
+  --muted-foreground: oklch(0.60 0.008 264);
+
+  /* Teal accent */
+  --accent: oklch(0.55 0.10 195);
+  --accent-foreground: oklch(1 0 0);
+
+  /* Semantic */
+  --destructive: oklch(0.65 0.20 22);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --ring: oklch(0.70 0.19 45);  /* orange focus ring */
+
+  /* Charts */
+  --chart-1: oklch(0.70 0.19 45);
+  --chart-2: oklch(0.55 0.10 195);
+  --chart-3: oklch(0.65 0.15 142);
+  --chart-4: oklch(0.65 0.15 280);
+  --chart-5: oklch(0.65 0.20 27);
+
+  /* Sidebar (dark) */
+  --sidebar: oklch(0.09 0.004 264);
+  --sidebar-foreground: oklch(0.90 0.005 264);
+  --sidebar-primary: oklch(0.70 0.19 45);   /* orange active */
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.165 0.005 264);  /* hover state */
+  --sidebar-accent-foreground: oklch(0.97 0.005 264);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.70 0.19 45);
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
-/* Brand CSS custom properties — overridden per-organisation at runtime */
+/* ─────────────────────────────────────────────
+   BRAND CSS VARIABLES
+   Overridden per-organisation at runtime
+   ───────────────────────────────────────────── */
 :root {
-  --brand-primary: #0F7E80;
-  --brand-accent: #F87A1F;
+  --brand-primary: #F87A1F;
+  --brand-accent: #0F7E80;
   --brand-text: #1a1a1a;
-  --brand-background: #ffffff;
+  --brand-background: #FAF8F5;
   --brand-font: "Inter", sans-serif;
   --brand-radius: 0.5rem;
 }
 
-/* Smooth transitions for interactive elements */
+/* ─────────────────────────────────────────────
+   BASE LAYER
+   ───────────────────────────────────────────── */
 @layer base {
-  button, a, input, select, textarea {
-    transition: all 0.15s ease-in-out;
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Headings: Inter 700, tight tracking */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-inter, sans-serif);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* Monospace numbers — apply this class to stats, times, prices */
+  .tabular {
+    font-family: var(--font-jetbrains-mono, monospace);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 }
 
-/* Minimum touch target size for WCAG 2.2 AA */
+/* ─────────────────────────────────────────────
+   SPRING TRANSITIONS
+   All interactive elements use spring easing
+   ───────────────────────────────────────────── */
 @layer base {
-  button, a[role="button"], [role="tab"], [role="menuitem"] {
+  button, a, input, select, textarea,
+  [role="button"], [role="tab"], [role="menuitem"] {
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition-duration: 200ms;
+    transition-property: transform, opacity, box-shadow, background-color, border-color, color;
+  }
+
+  /* Reduced motion override — WCAG 2.1 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────
+   ADHD SPOTLIGHT FOCUS
+   Hovering an interactive element dims siblings.
+   Add class="spotlight-group" to the container.
+   ───────────────────────────────────────────── */
+@layer utilities {
+  .spotlight-group:has(> *:hover) > *:not(:hover),
+  .spotlight-group:has(> *:focus-within) > *:not(:focus-within) {
+    opacity: 0.6;
+    transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Spring lift on hover — for cards and buttons */
+  .hover-lift {
+    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+  .hover-lift:active {
+    transform: scale(0.97);
+    transition-duration: 100ms;
+  }
+
+  /* Active/pressed scale — used on all interactive elements */
+  .active-scale:active {
+    transform: scale(0.97);
+    transition-duration: 100ms;
+  }
+
+  /* Noise texture — CSS noise for cream public pages */
+  .bg-noise {
+    background-image:
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* Orange dot loading indicator */
+  .loading-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .loading-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    animation: pulse-dot 1.4s ease-in-out infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.16s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+  /* Spring enter animation */
+  .animate-spring-in {
+    animation: spring-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Status stripe — coloured left border on booking rows */
+  .status-confirmed  { border-left: 3px solid oklch(0.65 0.15 142); }
+  .status-cancelled  { border-left: 3px solid oklch(0.65 0.20 27); }
+  .status-completed  { border-left: 3px solid oklch(0.60 0.10 220); }
+  .status-no-show    { border-left: 3px solid oklch(0.75 0.15 80); }
+  .status-pending    { border-left: 3px solid oklch(0.60 0.008 264); }
+}
+
+/* ─────────────────────────────────────────────
+   WCAG 2.2 — Minimum touch target sizes
+   ───────────────────────────────────────────── */
+@layer base {
+  button,
+  a[role="button"],
+  [role="tab"],
+  [role="menuitem"] {
     min-height: 44px;
     min-width: 44px;
   }

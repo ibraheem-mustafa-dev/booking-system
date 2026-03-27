@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter, DM_Sans, Playfair_Display, Poppins, Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ThemeProvider } from '@/lib/theme/provider';
 import { TRPCProvider } from '@/lib/trpc/provider';
 import './globals.css';
 
@@ -12,29 +11,10 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-const dmSans = DM_Sans({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-dm-sans',
-});
-
-const playfairDisplay = Playfair_Display({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-playfair',
-});
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  display: 'swap',
-  variable: '--font-poppins',
-});
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-jakarta',
+  variable: '--font-jetbrains-mono',
 });
 
 export const metadata: Metadata = {
@@ -55,17 +35,15 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${dmSans.variable} ${playfairDisplay.variable} ${poppins.variable} ${plusJakartaSans.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-background font-sans antialiased">
-        <ThemeProvider>
-          <TRPCProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster richColors position="bottom-right" />
-            </TooltipProvider>
-          </TRPCProvider>
-        </ThemeProvider>
+        <TRPCProvider>
+          <TooltipProvider>
+            {children}
+            <Toaster richColors position="bottom-right" />
+          </TooltipProvider>
+        </TRPCProvider>
       </body>
     </html>
   );

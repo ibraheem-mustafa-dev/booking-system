@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Check, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Check } from 'lucide-react';
+
+function LoadingDots() {
+  return (
+    <span className="loading-dots" aria-label="Loading">
+      <span /><span /><span />
+    </span>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -393,7 +401,7 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
 
         {slotsLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="size-6 animate-spin opacity-50" />
+            <LoadingDots />
           </div>
         )}
 
@@ -412,7 +420,7 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
         )}
 
         {!slotsLoading && slots.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="flex flex-wrap gap-2">
             {slots.map((slot) => {
               const isSelected =
                 selectedSlot && selectedSlot.start === slot.start;
@@ -422,7 +430,7 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
                   key={slot.start}
                   type="button"
                   onClick={() => handleSlotSelect(slot)}
-                  className="flex h-11 items-center justify-center rounded-lg border text-sm font-medium transition-colors"
+                  className="flex h-11 items-center justify-center rounded-full border px-4 font-mono text-sm font-medium transition-all duration-200 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] hover:translate-x-0.5 active:scale-95"
                   style={
                     isSelected
                       ? {
@@ -433,6 +441,7 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
                       : {
                           borderColor: 'var(--brand-primary)',
                           color: 'var(--brand-primary)',
+                          backgroundColor: 'transparent',
                         }
                   }
                 >
@@ -497,56 +506,35 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
-          <div>
-            <label htmlFor="client-name" className="mb-1 block text-sm font-medium">
-              Name *
-            </label>
-            <input
-              id="client-name"
-              type="text"
-              required
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="h-11 w-full rounded-lg border px-3 text-sm"
-              style={{ borderColor: 'var(--brand-primary)', borderRadius: 'var(--brand-radius)' }}
-              placeholder="Your full name"
-            />
-          </div>
+          <FloatingInput
+            id="client-name"
+            label="Name *"
+            type="text"
+            required
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+          />
 
           {/* Email */}
-          <div>
-            <label htmlFor="client-email" className="mb-1 block text-sm font-medium">
-              Email *
-            </label>
-            <input
-              id="client-email"
-              type="email"
-              required
-              value={clientEmail}
-              onChange={(e) => setClientEmail(e.target.value)}
-              className="h-11 w-full rounded-lg border px-3 text-sm"
-              style={{ borderColor: 'var(--brand-primary)', borderRadius: 'var(--brand-radius)' }}
-              placeholder="you@example.com"
-            />
-          </div>
+          <FloatingInput
+            id="client-email"
+            label="Email *"
+            type="email"
+            required
+            value={clientEmail}
+            onChange={(e) => setClientEmail(e.target.value)}
+          />
 
           {/* Phone */}
-          <div>
-            <label htmlFor="client-phone" className="mb-1 block text-sm font-medium">
-              Phone
-            </label>
-            <input
-              id="client-phone"
-              type="tel"
-              value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
-              className="h-11 w-full rounded-lg border px-3 text-sm"
-              style={{ borderColor: 'var(--brand-primary)', borderRadius: 'var(--brand-radius)' }}
-              placeholder="+44 7700 900 000"
-            />
-          </div>
+          <FloatingInput
+            id="client-phone"
+            label="Phone"
+            type="tel"
+            value={clientPhone}
+            onChange={(e) => setClientPhone(e.target.value)}
+          />
 
           {/* Custom fields */}
           {customFields.map((field) => (
@@ -564,19 +552,23 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
           ))}
 
           {/* Notes */}
-          <div>
-            <label htmlFor="client-notes" className="mb-1 block text-sm font-medium">
-              Notes
-            </label>
+          <div className="relative">
             <textarea
               id="client-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: 'var(--brand-primary)', borderRadius: 'var(--brand-radius)' }}
-              placeholder="Anything you'd like us to know?"
+              placeholder=" "
+              className="peer w-full resize-none border-0 border-b bg-transparent pb-1 pt-5 text-sm focus:outline-none"
+              style={{ borderColor: 'var(--brand-primary)' }}
             />
+            <label
+              htmlFor="client-notes"
+              className="pointer-events-none absolute left-0 top-0 text-xs font-medium transition-all duration-200 peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-xs"
+              style={{ color: 'var(--brand-primary)' }}
+            >
+              Notes
+            </label>
           </div>
 
           {/* Payment notice */}
@@ -599,10 +591,7 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
             }}
           >
             {submitting ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Booking...
-              </>
+              <LoadingDots />
             ) : (
               'Confirm booking'
             )}
@@ -627,16 +616,15 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
         }}
       >
         <div
-          className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full"
-          style={{ backgroundColor: 'var(--brand-primary)' }}
+          className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full animate-spring-in"
+          style={{ backgroundColor: '#0F7E80' }}
         >
-          <Check className="size-8 text-white" />
+          <Check className="size-8 text-white" strokeWidth={2.5} />
         </div>
 
-        <h3 className="text-xl font-bold">Booking confirmed</h3>
+        <h3 className="text-xl font-bold">You&rsquo;re booked in</h3>
         <p className="mt-2 text-sm opacity-70">
-          You&rsquo;re all set! A confirmation email will be sent to{' '}
-          <strong>{clientEmail}</strong>.
+          Confirmation sent to <strong>{clientEmail}</strong>.
         </p>
 
         <div className="mt-6 space-y-1 text-sm">
@@ -663,6 +651,48 @@ export function BookingFlow({ orgSlug, typeSlug, bookingType }: BookingFlowProps
 }
 
 // ---------------------------------------------------------------------------
+// Floating label input — bottom-border only, label animates up on focus/value
+// ---------------------------------------------------------------------------
+
+function FloatingInput({
+  id,
+  label,
+  type = 'text',
+  required,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  required?: boolean;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={type}
+        required={required}
+        value={value}
+        onChange={onChange}
+        placeholder=" "
+        className="peer h-11 w-full border-0 border-b bg-transparent pb-1 pt-4 text-sm focus:outline-none"
+        style={{ borderColor: 'var(--brand-primary)' }}
+      />
+      <label
+        htmlFor={id}
+        className="pointer-events-none absolute left-0 top-1 text-xs font-medium transition-all duration-200 peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs"
+        style={{ color: 'var(--brand-primary)' }}
+      >
+        {label}
+      </label>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Custom Field Renderer
 // ---------------------------------------------------------------------------
 
@@ -675,10 +705,8 @@ function CustomFieldInput({
   value: string | boolean | string[] | undefined;
   onChange: (value: string | boolean | string[]) => void;
 }) {
-  const inputStyle = {
-    borderColor: 'var(--brand-primary)',
-    borderRadius: 'var(--brand-radius)',
-  };
+  const borderStyle = { borderColor: 'var(--brand-primary)' };
+  const labelText = `${field.label}${field.required ? ' *' : ''}`;
 
   switch (field.type) {
     case 'text':
@@ -686,55 +714,52 @@ function CustomFieldInput({
     case 'phone':
     case 'number':
       return (
-        <div>
-          <label htmlFor={`cf-${field.id}`} className="mb-1 block text-sm font-medium">
-            {field.label} {field.required && '*'}
-          </label>
-          <input
-            id={`cf-${field.id}`}
-            type={field.type === 'phone' ? 'tel' : field.type}
-            required={field.required}
-            value={(value as string) || ''}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
-            className="h-11 w-full rounded-lg border px-3 text-sm"
-            style={inputStyle}
-          />
-        </div>
+        <FloatingInput
+          id={`cf-${field.id}`}
+          label={labelText}
+          type={field.type === 'phone' ? 'tel' : field.type}
+          required={field.required}
+          value={(value as string) || ''}
+          onChange={(e) => onChange(e.target.value)}
+        />
       );
 
     case 'textarea':
       return (
-        <div>
-          <label htmlFor={`cf-${field.id}`} className="mb-1 block text-sm font-medium">
-            {field.label} {field.required && '*'}
-          </label>
+        <div className="relative">
           <textarea
             id={`cf-${field.id}`}
             required={field.required}
             value={(value as string) || ''}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={field.placeholder}
+            placeholder=" "
             rows={3}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={inputStyle}
+            className="peer w-full resize-none border-0 border-b bg-transparent pb-1 pt-5 text-sm focus:outline-none"
+            style={borderStyle}
           />
+          <label
+            htmlFor={`cf-${field.id}`}
+            className="pointer-events-none absolute left-0 top-0 text-xs font-medium transition-all duration-200 peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-xs"
+            style={{ color: 'var(--brand-primary)' }}
+          >
+            {labelText}
+          </label>
         </div>
       );
 
     case 'select':
       return (
         <div>
-          <label htmlFor={`cf-${field.id}`} className="mb-1 block text-sm font-medium">
-            {field.label} {field.required && '*'}
+          <label htmlFor={`cf-${field.id}`} className="mb-1 block text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
+            {labelText}
           </label>
           <select
             id={`cf-${field.id}`}
             required={field.required}
             value={(value as string) || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="h-11 w-full rounded-lg border px-3 text-sm"
-            style={inputStyle}
+            className="h-11 w-full border-0 border-b bg-transparent text-sm focus:outline-none"
+            style={borderStyle}
           >
             <option value="">Select...</option>
             {field.options?.map((opt) => (
