@@ -12,7 +12,12 @@ export async function GET(request: NextRequest) {
   // internal URL (0.0.0.0:3000) behind the Nginx reverse proxy.
   const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
   const code = searchParams.get('code');
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  // Sanitise redirect — only allow relative paths to prevent open redirect attacks
+  const rawRedirect = searchParams.get('redirect') || '/dashboard';
+  const redirectTo =
+    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+      ? rawRedirect
+      : '/dashboard';
   const errorParam = searchParams.get('error');
 
   // Handle error from Supabase (e.g. expired link)
