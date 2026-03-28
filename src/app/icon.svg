@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="#0C0C0F"/>
+  <!-- Calendar body -->
+  <rect x="5" y="10" width="22" height="17" rx="2.5" stroke="#F87A1F" stroke-width="1.5" fill="rgba(248,122,31,0.12)"/>
+  <!-- Calendar header -->
+  <rect x="5" y="10" width="22" height="7" rx="2.5" fill="#F87A1F"/>
+  <!-- Patch to square off header bottom corners -->
+  <rect x="5" y="14" width="22" height="3" fill="#F87A1F"/>
+  <!-- Ring hangers -->
+  <rect x="10" y="7" width="2.5" height="6" rx="1.25" fill="#F87A1F"/>
+  <rect x="19.5" y="7" width="2.5" height="6" rx="1.25" fill="#F87A1F"/>
+  <!-- Date dots -->
+  <circle cx="11" cy="22" r="1.5" fill="#F87A1F"/>
+  <circle cx="16" cy="22" r="1.5" fill="#F87A1F"/>
+  <circle cx="21" cy="22" r="1.5" fill="#F87A1F" opacity="0.4"/>
+</svg>

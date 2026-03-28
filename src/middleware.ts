@@ -1,3 +1,8 @@
+// TODO: The Supabase Auth Helpers middleware pattern used here (`updateSession`)
+// is deprecated in favour of the Supabase SSR package (@supabase/ssr).
+// Do not migrate until after Phase 1 deploy is stable — the current pattern
+// works but will show deprecation warnings in future versions.
+// Tracking issue: migrate to @supabase/ssr createServerClient + middleware pattern.
 import { type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
