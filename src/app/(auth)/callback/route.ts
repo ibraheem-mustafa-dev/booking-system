@@ -5,12 +5,11 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { users, organisations, orgMembers } from '@/lib/db/schema';
 import { generateUniqueSlug } from '@/lib/auth/utils';
+import { getRequestBaseUrl } from '@/lib/auth/base-url';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  // Use the configured app URL — request.nextUrl.origin returns the Docker
-  // internal URL (0.0.0.0:3000) behind the Nginx reverse proxy.
-  const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+  const origin = getRequestBaseUrl(request);
   const code = searchParams.get('code');
   // Sanitise redirect — only allow relative paths to prevent open redirect attacks
   const rawRedirect = searchParams.get('redirect') || '/dashboard';

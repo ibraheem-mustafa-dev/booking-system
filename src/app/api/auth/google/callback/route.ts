@@ -11,6 +11,7 @@ import {
   getGoogleEmail,
   syncCalendarList,
 } from '@/lib/calendar/google';
+import { getRequestBaseUrl } from '@/lib/auth/base-url';
 
 /**
  * GET /api/auth/google/callback
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getRequestBaseUrl(request);
   const dashboardUrl = `${baseUrl}/dashboard/availability`;
 
   // Handle user denial

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getRequestBaseUrl } from '@/lib/auth/base-url';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -31,9 +32,7 @@ export async function updateSession(request: NextRequest) {
   // Protect dashboard routes
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard');
   if (isDashboard && !user) {
-    // Use configured app URL — request.url returns Docker internal URL behind Nginx
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
-    const loginUrl = new URL('/login', baseUrl);
+    const loginUrl = new URL('/login', getRequestBaseUrl(request));
     loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
