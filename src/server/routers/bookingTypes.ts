@@ -61,6 +61,22 @@ const bookingTypeInput = z.object({
   priceAmount: z.string().optional(),
   priceCurrency: z.string().max(3).default('GBP'),
   requiresPayment: z.boolean().default(false),
+  emailSettings: z
+    .object({
+      reviewRequest: z.object({
+        enabled: z.boolean(),
+        delayMinutes: z.number().int().min(0),
+        subject: z.string(),
+        body: z.string(),
+      }),
+      followUpReminder: z.object({
+        enabled: z.boolean(),
+        delayDays: z.number().int().min(1),
+        subject: z.string(),
+        body: z.string(),
+      }),
+    })
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -147,6 +163,7 @@ export const bookingTypesRouter = router({
           priceAmount: input.priceAmount || null,
           priceCurrency: input.priceCurrency,
           requiresPayment: input.requiresPayment,
+          ...(input.emailSettings ? { emailSettings: input.emailSettings } : {}),
         })
         .returning();
 

@@ -5,10 +5,9 @@
       "args": ["-y", "@upstash/context7-mcp"],
       "description": "Live documentation lookup for Next.js, Drizzle, tRPC, Supabase, Zod, and other libraries"
     },
-    "a11y-accessibility": {
-      "command": "npx",
-      "args": ["-y", "a11y-mcp-server"],
-      "description": "WCAG 2.2 accessibility audits via axe-core. Use to test URLs and HTML for colour contrast, ARIA, touch targets, and all axe-core rules."
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
     }
   }
 }

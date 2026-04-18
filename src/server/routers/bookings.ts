@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { bookings, bookingTypes, organisations, invoices } from '@/lib/db/schema';
 import { eq, desc, and, gte, lte, count, sql, ne } from 'drizzle-orm';
 import { sendBookingEmails } from '@/lib/email/send-booking-emails';
+import { createBookingEvent } from '@/lib/calendar/google';
 
 export const bookingsRouter = router({
   /**
@@ -233,6 +234,38 @@ export const bookingsRouter = router({
           }
         } catch (err) {
           console.error('[bookings.create] Email sending failed:', err);
+        }
+      })();
+
+      // Create Google Calendar event — fire-and-forget, never blocks booking
+      void (async () => {
+        try {
+          const [type] = await db
+            .select({ name: bookingTypes.name, locationDetails: bookingTypes.locationDetails })
+            .from(bookingTypes)
+            .where(eq(bookingTypes.id, input.bookingTypeId))
+            .limit(1);
+
+          if (!type) return;
+
+          const eventId = await createBookingEvent({
+            bookingTypeName: type.name,
+            clientName: input.clientName,
+            clientEmail: input.clientEmail,
+            startAt: new Date(input.startAt),
+            endAt: new Date(input.endAt),
+            location: input.location ?? type.locationDetails,
+            notes: input.notes,
+          });
+
+          if (eventId) {
+            await db
+              .update(bookings)
+              .set({ googleCalendarEventId: eventId })
+              .where(eq(bookings.id, booking.id));
+          }
+        } catch (err) {
+          console.error('[bookings.create] Google Calendar event creation failed:', err);
         }
       })();
 

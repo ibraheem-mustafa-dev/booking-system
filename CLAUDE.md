@@ -8,10 +8,14 @@
 ## Project Context
 - **Stack:** Next.js 16, React 19, TypeScript, Supabase, Drizzle ORM, tRPC v11, Tailwind CSS v4, shadcn/ui
 - **Auth:** Supabase Auth (email + magic link)
-- **Deployment:** Docker Compose on Hostinger KVM 2 VPS (planned domain: book.smallgiantsstudio.co.uk)
+- **Deployment:** Docker Compose on Hostinger KVM 2 VPS (72.62.212.169)
+- **Live URL (staging):** https://book.smallgiantsstudio.cloud
+- **Production URL (future):** https://book.smallgiantsstudio.co.uk
+- **Database:** Supabase Cloud (single source of truth). Docker postgres still in compose but NOT used by app.
 - **Started:** 2026-02-28 (first commit)
-- **Status:** Phase 1 MVP at 90% — Steps 14 (testing audit) and 15 (deploy) remain
-- **WordPress extension:** SGS Booking plugin (`small-giants-wp/plugins/sgs-booking/`) — a thin API client that provides Gutenberg blocks for embedding booking UI on WordPress sites. Spec at `small-giants-wp/specs/03-SGS-BOOKING.md`. Plugin CLAUDE.md exists. Not yet built — waiting for this system's Phase 1 completion + missing API endpoints.
+- **Status:** Phase 1 COMPLETE (audit + deploy done 2026-03-28). Phase 2 in progress.
+- **Current commit:** b81c4a0 on main
+- **WordPress extension:** SGS Booking plugin (`small-giants-wp/plugins/sgs-booking/`) -- a thin API client that provides Gutenberg blocks for embedding booking UI on WordPress sites. Spec at `small-giants-wp/specs/03-SGS-BOOKING.md`. Plugin CLAUDE.md exists. Not yet built.
 
 ## Supabase Rules
 - Row Level Security (RLS) REQUIRED on every table — no exceptions

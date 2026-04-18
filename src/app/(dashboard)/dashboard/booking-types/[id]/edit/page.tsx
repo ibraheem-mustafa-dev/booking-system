@@ -72,11 +72,28 @@ export default function EditBookingTypePage() {
                     options?: string[];
                   }>;
                 },
+                emailSettings: bookingType.emailSettings as {
+                  reviewRequest: {
+                    enabled: boolean;
+                    delayMinutes: number;
+                    subject: string;
+                    body: string;
+                  };
+                  followUpReminder: {
+                    enabled: boolean;
+                    delayDays: number;
+                    subject: string;
+                    body: string;
+                  };
+                } | undefined,
               }}
               onSubmit={(values) =>
                 updateMutation.mutate({
                   id: params.id,
-                  data: values,
+                  data: {
+                    ...values,
+                    emailSettings: values.emailSettings,
+                  },
                 })
               }
               isPending={updateMutation.isPending}
